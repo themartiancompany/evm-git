@@ -1,0 +1,1546 @@
+#!/usr/bin/env bash
+
+# SPDX-License-Identifier: AGPL-3.0
+
+#    ----------------------------------------------------------------------
+#    Copyright © 2024, 2025  Pellegrino Prevete
+#
+#    All rights reserved
+#    ----------------------------------------------------------------------
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="$( \
+  realpath \
+    "${_bin}/../lib")"
+_crash_bash="${_lib}/libcrash-bash/crash-bash"
+_libevm="${_lib}/libevm/libevm"
+_sourced \
+  "${_crash_bash}" 2>/dev/null || \
+  source \
+    "${_crash_bash}"
+_sourced \
+  "${_libevm}"
+
+# Check all required programs
+# are available
+_requirements() {
+  _check_cmd \
+    'libevm-requirements' \
+    'libevm'
+  libevm-requirements
+  _check_cmd \
+    'evm-contract-call' \
+    'evm-contracts-tools'
+  _check_cmd \
+    'evm-contract-deployment-networks' \
+    'evm-contracts-tools'
+  _check_cmd \
+    'evm-contract-source-verify' \
+    'evm-contracts-source-index'
+  _check_cmd \
+    'evm-openpgp-key-receive' \
+    'evm-openpgp-keyserver'
+  _check_cmd \
+    'evm-wallet'
+  _check_cmd \
+    'evmfs'
+  # For when spammers of contracts
+  # their authors will leave unverified
+  # will appear.
+  # _check_cmd \
+  #   'ur-publishers' \
+  #   'ur'
+}
+
+# shellcheck disable=SC2034
+_global_variables() {
+  get_date=""
+  si_address=""
+  si_version=""
+  source_publisher=""
+  contract_network=""
+  contract_address=""
+  keys_update=""
+  output_dir=""
+  output_type=""
+  output_file=""
+  work_dir=""
+  color=""
+  quiet=""
+}
+
+_contract_call_opts_setup() {
+  local \
+    _msg=() \
+    _evm_contract_call_opts=()
+  _evm_contract_call_opts+=(
+    -n
+      "${_target_network}"
+    -k
+      "${_api_key_path}"
+  )
+  _si_call_opts+=(
+    "${_evm_contract_call_opts[@]}"
+    -A
+      "${_si_abi}"
+    -B
+      "${_si_bytecode}"
+    -C
+      "${_si_compiler_output}"
+    -t
+      "static"
+  )
+}
+
+_evm_version_retrieve() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _msg=()
+  _msg=(
+    "Retrieving target EVM version."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _evm_version="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "readEvmVersion" \
+      "${_publisher}" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  if [[ "${_evm_version}" == "" ]]; then
+    _msg=(
+      "Target EVM version for contract '${_contract_address}'"
+      "on network '${_contract_network}' by publisher"
+      "'${_publisher}' does not exist or there has"
+      "been an error retrieving it."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_contract_compiler_retrieve() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _msg=()
+  _msg=(
+    "Retrieving target compiler."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _contract_compiler="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "readCompiler" \
+      "${_publisher}" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  if [[ "${_contract_compiler}" == "" ]]; then
+    _msg=(
+      "Target compiler for contract '${_contract_address}'"
+      "on network '${_contract_network}' by publisher"
+      "'${_publisher}' does not exist or there has"
+      "been an error retrieving it."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_compiler_version_retrieve() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _msg=()
+  _msg=(
+    "Retrieving target compiler version."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _compiler_version="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "readCompilerVersion" \
+      "${_publisher}" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  if [[ "${_compiler_version}" == "" ]]; then
+    _msg=(
+      "Target compiler version for contract '${_contract_address}'"
+      "on network '${_contract_network}' by publisher"
+      "'${_publisher}' does not exist or there has"
+      "been an error retrieving it."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_tx_deployment_retrieve() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _msg=()
+  _msg=(
+    "Retrieving deployment transaction hash."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _tx_deployment="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "readDeploymentTransaction" \
+      "${_publisher}" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  if [[ "${_tx_deployment}" == "" ]]; then
+    _msg=(
+      "Target deployment transaction for contract '${_contract_address}'"
+      "on network '${_contract_network}' by publisher"
+      "'${_publisher}' does not exist or there has"
+      "been an error retrieving it."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_source_archive_uri_get() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _msg=()
+  _msg=(
+    "Retrieving source URI."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _source_archive_uri="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "readSource" \
+      "${_publisher}" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  if [[ "${_source_archive_uri}" == "" ]]; then
+    _msg=(
+      "Target source for contract '${_contract_address}'"
+      "on network '${_contract_network}' by publisher"
+      "'${_publisher}' does not exist or there has"
+      "been an error retrieving it."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_source_archive_get() {
+  local \
+    _uri="${1}" \
+    _dest="${2}" \
+    _evmfs_opts=() \
+    _msg=()
+  _msg=(
+    "Saving source in '${_dest}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  if [[ "${quiet}" == "n" ]]; then
+    _evmfs_opts+=(
+      -v
+    )
+  fi
+  _evmfs_opts+=(
+    -o
+      "${_dest}"
+  )
+  evmfs \
+    "${_evmfs_opts[@]}" \
+    get \
+      "${_uri}" || \
+    true
+  if [[ ! -e "${_dest}" ]]; then
+    _msg=(
+      "Error saving the build"
+      "recipe in '${_dest}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  elif [[ -e "${_dest}" ]]; then
+    _msg=(
+      "Recipe archive correctly saved onto"
+      "'${_dest}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+}
+
+_source_archive_validate() {
+  local \
+    _archive="${1}" \
+    _publisher="${2}" \
+    _evm_gpg_signature_verify_opts=() \
+    _msg=()
+  _msg=(
+    "Validating archive"
+    "'${_archive}' has been properly"
+    "signed by '${_publisher}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  if [[ ! -e "${_archive}" ]]; then
+    _msg=(
+      "Somehow the archive '${_archive}'"
+      "does not exist."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ -e "${_archive}" ]]; then
+    _msg=(
+      "Found archive at location"
+      "'${_archive}.'"
+    )
+  fi
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_gpg_signature_verify_opts+=(
+      -v
+    )
+  fi
+  evm-gpg-signature-verify \
+    "${_evm_gpg_signature_verify_opts[@]}" \
+    "${_source_archive}" \
+    "${_publisher}"
+}
+
+_archive_contents_read() {
+  local \
+    _archive="${1}" \
+    _tar_opts=() \
+    _content \
+    _contents=() \
+    _msg=()
+  _tar_opts+=(
+    -t
+    -f
+  )
+  mapfile \
+    -d \
+    $'\n' \
+    _contents < \
+    <(tar \
+        "${_tar_opts[@]}" \
+        "${_archive}" || \
+      true)
+  for _content in "${_contents[@]}"; do
+    _archive_contents+=(
+      "${_content%$'\n'}"
+    )
+  done
+  if [[ "${_archive_contents[*]}" == "" ]]; then
+    _msg=(
+      "Corrupted or empty archive '${_archive}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_archive_contents_check() {
+  local \
+    _contract_address="${1}" \
+    _archive="${2}" \
+    _archive_contents=() \
+    _file \
+    _msg=()
+  _msg=(
+    "Verifying '${_archive}'"
+    "integrity for contract '${_contract_address}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _archive_contents_read \
+    "${_archive}"
+  for _file in "${_archive_contents[@]}"; do
+    if [[ "${_file}" != "${_contract_address}.sol" ]]; then
+      _msg=(
+        "Found '${_file}' in archive '${_archive}',"
+        "but the only file in the archive must be"
+	"'${_contract_address}.sol'."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  done
+}
+
+_source_archive_extract() {
+  local \
+    _contract_address="${1}" \
+    _source_archive="${2}" \
+    _publisher_dir="${3}" \
+    _publisher="${4}" \
+    _evm_gpg_decrypt_opts=() \
+    _msg=() \
+    _tar_archive \
+    _integrity_error \
+    _tar_opts=() \
+    _gpg_opts=() \
+    _archive_contents=() \
+    _file
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_gpg_decrypt_opts+=(
+      -v
+    )
+  fi
+  _tar_archive="${_source_archive%.gpg}"
+  _evm_gpg_decrypt_opts+=(
+    -o
+      "${_tar_archive}"
+  )
+  rm \
+    -rf \
+    "${_tar_archive}" || \
+    true
+  evm-gpg-decrypt \
+    "${_evm_gpg_decrypt_opts[@]}" \
+    "${_source_archive}" \
+    "${_publisher}"
+  _archive_contents_check \
+    "${_contract_address}" \
+    "${_tar_archive}"
+  if [[ "${quiet}" == "n" ]]; then
+    _tar_opts+=(
+      -v
+    )
+  fi
+  _tar_opts+=(
+    --directory
+      "${_publisher_dir}"
+    -x
+    -f
+  )
+  tar \
+    "${_tar_opts[@]}" \
+    "${_tar_archive}"
+}
+
+_revision_validate() {
+  local \
+    _revision="${1}" \
+    _revision_latest="${2}" \
+    _msg=()
+  if (( "${_revision}" < "${_revision_latest}" )); then
+    _msg=(
+      "Getting revision '${_revision}',"
+      "while latest is '${_revision_latest}'."
+    )
+    _msg_warning \
+      "${_msg[*]}"
+  elif (( "${_revision}" > "${_revision_latest}" )); then
+    _msg=(
+      "Trying to get revision '${_revision}',"
+      "while latest is '${_revision_latest}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_tx_deployment_get() {
+  local \
+    _publisher="${1}"
+  evm-contract-call \
+    "${_si_call_opts[@]}" \
+    "${_si_address}" \
+    "deploymentTransaction" \
+    "${_publisher}" \
+    "${_contract_network}" \
+    "${_contract_address}"
+}
+
+_deployer_get() {
+  local \
+    _publisher="${1}" \
+    _evm_contract_deployer_get_opts=() \
+    _tx_null \
+    _msg=()
+  _tx_null="0x0000000000000000000000000000000000000000000000000000000000000000"
+  _msg=(
+    "Getting deployer address"
+    "reported by publisher '${_publisher}'."
+  )
+  _tx_deployment="$( \
+    _tx_deployment_get \
+      "${_publisher}")"
+  _evm_contract_deployer_get_opts+=(
+    -n
+      "${_contract_network}"
+  )
+  if [[ "${_tx_deployment}" == "${_tx_null}" ]]; then
+    _msg=(
+      "No deployment transaction attached to"
+      "publisher '${_publisher}' reported"
+      "contracts' sources."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _tx_deployment=""
+  elif [[ "${_tx_deployment}" != "${_tx_null}" ]]; then
+    _msg=(
+      "Retrieving the deployer from publisher '${_publisher}'"
+      "reported deployment transaction."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _deployer="$( \
+      evm-contract-deployer-get \
+        "${_evm_contract_deployer_get_opts[@]}" \
+        "${_contract_address}" \
+        "${_tx_deployment}")"
+  fi
+  if [[ "${_deployer}" == "" ]]; then
+    _msg=(
+      "Invalid deployment transaction"
+      "reported by publisher '${_publisher}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _tx_deployment=""
+  elif [[ "${_deployer}" != "" ]]; then
+    _msg=(
+      "Found deployer '${_deployer}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+}
+
+_publisher_get() {
+  local \
+    _publisher_no="${1}" \
+    _msg=()
+  _msg=(
+    "Retrieving '${_publisher_no}'th"
+    "source publisher address."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _publisher="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "sourcePublisher" \
+      "${_contract_network}" \
+      "${_contract_address}" \
+      "${_publisher_no}")"
+}
+
+_publisher_auto_detect() {
+  local \
+    _publishers_amount \
+    _locked \
+    _publisher \
+    _cursor \
+    _publisher_no \
+    _address_null \
+    _deployer \
+    _msg=()
+  _deployer=""
+  _publisher_no="0"
+  _msg=(
+    "Automatically detecting"
+    "target publisher for the"
+    "contract source."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _publisher_get \
+    "${_publisher_no}"
+  _address_null="0x0000000000000000000000000000000000000000"
+  if [[ "${_publisher}" == "${_address_null}" ]]; then
+    _msg=(
+      "Nobody has published the source"
+      "for this contract. Please consider"
+      "doing it yourself."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _deployer_get \
+    "${_publisher}"
+  if [[ "${_deployer}" != "" ]]; then
+    _msg=(
+      "Selecting deployer '${_deployer}' reported by"
+      "publisher '${_publisher}' as target"
+      "contract source publisher."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _target_publishers+=(
+      "${_deployer}"
+      # TODO: Enable getting the source from
+      # whomever has published the
+      # contract kirsh when the
+      # bytecode verification tool
+      # is ready.
+      # "${_publisher}"
+    )
+    return
+  elif [[ "${_deployer}" == "" ]]; then
+    _msg=(
+      "Kirsh publisher for this contract's"
+      "source code hasn't correctly reported the"
+      "contract deployer, getting full"
+      "list of source publishers."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+  if [[ "${wallet_address}" != "" ]]; then
+    _msg=(
+      "Trying recovering deployer from"
+      "own namespace before attempting"
+      "with more the public list."
+    )
+    _deployer_get \
+      "${wallet_address}"
+    if [[ "${_deployer}" != "" ]]; then
+      _msg=(
+        "Selecting self-reported deployer '${_deployer}'"
+        "as target contract source publisher."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _target_publishers+=(
+        "${_deployer}"
+        # Since user has published the deployer
+        # he could also have published the
+        # code so it's worth checking
+        # if deployer has not.
+        "${wallet_address}"	
+      )
+      return
+    elif [[ "${_deployer}" == "" ]]; then
+      _msg=(
+        "No self-reported deployer address."
+        "Consider doing it if the correct one"
+        "is quite down the list and signing up as"
+        "an Ur publisher to speed up the look-up"
+        "for others as well."
+      )
+    fi
+  fi
+  _publisher_no="$( \
+    evm-contract-call \
+      "${_si_call_opts[@]}" \
+      "${_si_address}" \
+      "publisherNo" \
+      "${_contract_network}" \
+      "${_contract_address}")"
+  _msg=(
+    "Found '$(("${_publisher_no}" + 1))'"
+    "publishers."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  for _cursor \
+    in $(seq 1 \
+             "${_publisher_no}"); do
+    _publisher="$( \
+      _publisher_get \
+        "${_cursor}")"
+    _deployer_get \
+      "${_publisher}"
+    if [[ "${_deployer}" != "" ]]; then
+      _msg=(
+        "Selecting deployer '${_deployer}' reported by"
+        "publisher '${_publisher}' as target"
+        "contract source publisher."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _target_publisher="${_deployer}"
+      break
+    fi
+  done
+  if [[ "${_deployer}" == "" ]]; then
+    _msg=(
+      "Deployer not found in"
+      "any of the source code"
+      "listings, consider posting it"
+      "yourself."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_publisher_keys_find() {
+  local \
+    _dir="${1}" \
+    _publisher="${2}" \
+    _find_opts=()
+  _msg=(
+    "Looking for keys by publisher '${_publisher}'"
+    "in local EVM OpenPGP Key Server database"
+    "'${_dir}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _publisher_keys=()
+  _find_opts+=(
+    -type
+      "f"
+    -name
+      "${_publisher}.*.asc"
+    -print0
+  )
+  _msg=(
+    "Running find with options"
+    "'${_find_opts[@]}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  mapfile \
+    -d \
+    $'\0' \
+    _publisher_keys < \
+    <(find \
+        "${_dir}" \
+        "${_find_opts[@]}" 2>/dev/null || \
+      true)
+}
+
+_contract_source_retrieve() {
+  local \
+    _si_address="${1}" \
+    _publisher="${2}" \
+    _contract_network="${3}" \
+    _contract_address="${4}" \
+    _source_archive="${5}" \
+    _source_archive_uri
+  _source_archive_uri_get \
+    "${_si_address}" \
+    "${_publisher}" \
+    "${_contract_network}" \
+    "${_contract_address}"
+  _source_archive_get \
+    "${_source_archive_uri}" \
+    "${_source_archive}"
+}
+
+_compiler_version_check() {
+  local \
+    _data="${1}"
+  _msg=(
+    "Invalid compiler version number '${_data}'."
+  )
+  echo \
+    "${_data}" | \
+    grep \
+      -E \
+        '^([0-9]*).([0-9]*).([0-9]*)$' || \
+    _msg_error \
+      "${_msg[*]}" \
+      1
+}
+
+_tx_deployment_check() {
+  local \
+    _data="${1}"
+  _msg=(
+    "Invalid compiler version number '${_data}'."
+  )
+  _tx_hash_sanity_check \
+    "${_data}"
+}
+
+_contract_compiler_check() {
+  local \
+    _data="${1}" \
+    _compilers=()
+  _compilers=(
+    "serpent"
+    "solc"
+  )
+  if [[ " ${_compilers[*]} " != *" ${_data} "* ]]; then
+    _msg=(
+      "Invalid compiler '${_data}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_evm_version_check() {
+  local \
+    _data="${1}" \
+    _evm_versions=()
+  _evm_versions=(
+    "homestead"
+    "tangerineWhistle"
+    "spuriousDragon"
+    "byzantium"
+    "constantinople"
+    "petersburg"
+    "istanbul"
+    "berlin"
+    "london"
+    "paris"
+    "shanghai"
+    "cancun"
+    "prague"
+    "osaka"
+  )
+  if [[ " ${_evm_versions[*]} " != *" ${_data} "* ]]; then
+    _msg=(
+      "Invalid EVM version '${_data}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_contract_data_save() {
+  local \
+    _type="${1}" \
+    _data="${2}" \
+    _output_file \
+    _msg=()
+  _output_file="${_publisher_dir}/${_type}.txt"
+  if (( 2 < "$#" )); then
+    _output_file="${3}"
+  fi
+  if [[ "${_data}" == "" ]]; then
+    _msg=(
+      "Empty data for type '${_type}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  "_${_type}_check" \
+    "${_data}"
+  echo \
+    "${_data}" > \
+    "${_output_file}"
+}
+
+_output_type_check() {
+  local \
+    _msg=()
+  if [[ "${_output_type}" != "all" && \
+        "${_output_type}" != "contract_compiler" && \
+        "${_output_type}" != "contract_source" && \
+        "${_output_type}" != "compiler_version" && \
+        "${_output_type}" != "evm_version" ]]; then
+    _msg=(
+      "Invalid output type '${_output_type}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_evm_contract_source_verify_opts_setup() {
+  _evm_contract_source_verify_opts=(
+    -b
+      "runtime"
+    -i
+      "${_publisher_dir}/${_contract_address}.sol"
+  )
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_contract_source_verify_opts+=(
+      -v
+    )
+  fi
+  if [[ "${_target_network}" != "" ]]; then
+    _evm_contract_source_verify_opts+=(
+      -n
+        "${_target_network}"
+    )
+  fi
+  if [[ "${_evm_version}" != "" ]]; then
+    _evm_contract_source_verify_opts+=(
+      -e
+        "${_evm_version}"
+    )
+  fi
+  if [[ "${_compiler_version}" != "" ]]; then
+    _evm_contract_source_verify_opts+=(
+      -S
+        "${_compiler_version}"
+    )
+  fi
+  if [[ "${_tx_deployment}" != "" ]]; then
+    _evm_contract_source_verify_opts+=(
+      -T
+        "${_tx_deployment}"
+    )
+  fi
+}
+
+
+_evm_contract_source_get() {
+  local \
+    _si_address="${1}" \
+    _si_version="${2}" \
+    _deployments_dir="${3}" \
+    _wallet_name="${4}" \
+    _wallet_path="${5}" \
+    _wallet_password="${6}" \
+    _wallet_seed="${7}" \
+    _target_network="${8}" \
+    _api_key_path="${9}" \
+    _target_publisher="${10}" \
+    _contract_network="${11}" \
+    _contract_address="${12}" \
+    _work_dir="${13}" \
+    _keys_update="${14}" \
+    _output_type="${15}" \
+    _output_dir="${16}" \
+    _output_file="${17}" \
+    _retrieve_opts=() \
+    _publisher \
+    _publisher_keys=() \
+    _target_publishers=() \
+    _si_call_opts=() \
+    _cache_dir \
+    _si_abi \
+    _si_bytecode \
+    _si_compiler_output \
+    _source_archive \
+    _tx_deployment \
+    _evm_version \
+    _contract_compiler \
+    _compiler_version \
+    _publisher_latest \
+    _gnupg_home \
+    _evm_openpgp_keyserver_db_dir \
+    _evm_openpgp_key_receive_opts=() \
+    _evm_contract_source_verify_opts=() \
+    _value \
+    _msg=()
+  _output_type_check
+  _address_sanity_check \
+    "${_contract_address}"
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_openpgp_key_receive_opts+=(
+      -v
+    )
+  fi
+  _evm_openpgp_keyserver_db_dir="${HOME}/.cache/evm-openpgp-keyserver/receive"
+  _cache_dir="$( \
+    _cache_dir_get)"
+  _contract_artifacts_auto_detect \
+    "${_deployments_dir}" \
+    "${_target_network}" \
+    "SourceIndex" \
+    "_si" \
+    "${_si_version}"
+  _contract_call_opts_setup 
+  if [[ "${_target_publisher}" == "" ]]; then
+    _publisher_auto_detect
+  elif [[ "${_target_publisher}" != "" ]]; then
+    _target_publishers+=(
+      "${_target_publisher}"
+    )
+  fi
+  for _publisher in "${_target_publishers[@]}"; do
+    _publisher_dir="${_work_dir}/${_publisher}"
+    _publisher_dir_setup \
+       "${_publisher_dir}"
+    _source_archive="${_publisher_dir}/${_contract_address}.tar.xz.gpg"
+    _publisher_keys_find \
+      "${_evm_openpgp_keyserver_db_dir}" \
+      "${_publisher}"
+    if [[ "${_publisher_keys[*]}" == "" || \
+          "${_keys_update}" == "y" ]]; then
+      _msg=(
+        "No OpenPGP public keys found for"
+        "publisher '${_publisher}', downloading."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      evm-openpgp-key-receive \
+        "${_evm_openpgp_key_receive_opts[@]}" \
+        "${_publisher}"
+      _publisher_keys_find \
+        "${_evm_openpgp_keyserver_db_dir}" \
+        "${_publisher}"
+    fi
+    _retrieve_opts=(
+      "${_si_address}"
+      "${_publisher}"
+      "${_contract_network}"
+      "${_contract_address}"
+    )
+    if [[ "${_output_type}" == "all" ]]; then
+      _contract_source_retrieve \
+        "${_retrieve_opts[@]}" \
+        "${_source_archive}"
+      _evm_version_retrieve \
+        "${_retrieve_opts[@]}"
+      _contract_data_save \
+        "evm_version" \
+        "${_evm_version}"
+      _contract_compiler_retrieve \
+        "${_retrieve_opts[@]}"
+      _contract_data_save \
+        "contract_compiler" \
+        "${_contract_compiler}"
+      _compiler_version_retrieve \
+        "${_retrieve_opts[@]}"
+      _contract_data_save \
+        "compiler_version" \
+        "${_compiler_version}"
+      if [[ ! -v "_tx_deployment" ]] || \
+         [[ "${_tx_deployment}" == "" ]]; then
+        _tx_deployment_retrieve \
+          "${_retrieve_opts[@]}"
+      fi
+      _contract_data_save \
+        "tx_deployment" \
+        "${_tx_deployment}"
+    elif [[ "${_output_type}" != "all" ]]; then
+      "_${_output_type}_retrieve"
+      if [[ "${_output_type}" != "contract_source" ]]; then
+        _value=$( \
+          _get \
+            "" \
+            "${_output_type}")
+        _contract_data_save
+          "${_output_type}" \
+          "${_value}" \
+	  "${_output_file}"
+      fi
+    fi
+    if [[ "${_output_type}" == "all" || \
+          "${_output_type}" == "source" ]]; then
+      if [[ -e "${_source_archive}" ]]; then
+        _source_archive_validate \
+          "${_source_archive}" \
+          "${_publisher}"
+        _source_archive_extract \
+          "${_contract_address}" \
+          "${_source_archive}" \
+          "${_publisher_dir}" \
+          "${_publisher}"
+        _retrieved="true"
+      fi
+    fi
+    if [[ "${_retrieved}" == "true" ]]; then
+      # TODO WIP:
+      #   bytecode verification.
+      _evm_contract_source_verify_opts_setup
+        evm-contract-source-verify \
+          "${_evm_contract_source_verify_opts[@]}" \
+          "${_contract_network}" \
+          "${_contract_address}"
+      _verified="$( \
+        evm-contract-source-verify \
+          "${_evm_contract_source_verify_opts[@]}" \
+          "${_contract_network}" \
+          "${_contract_address}")"
+      if [[ "${_verified}" == "" ]]; then
+        mv \
+          "${_publisher_dir}/${_contract_address}.sol" \
+          "${_output_dir}"
+        mv \
+          "${_publisher_dir}/"{"contract_compiler","evm_version","compiler_version"}".txt" \
+          "${_output_dir}"
+      if [[ "${deployer}" != "" ]]; then
+        mv \
+          "${_publisher_dir}/tx_deployment.txt" \
+	  "${output_dir}"
+	echo \
+	  "${_deployer}" > \
+          "${_output_dir}/deployer.txt"
+      fi
+
+      fi
+      break
+    fi
+  done
+}
+
+_publisher_dir_setup() {
+  local \
+    _dir="${1}"
+  mkdir \
+    -p \
+    "${_dir}"
+  chmod \
+    700 \
+    "${_dir}"
+}
+
+_work_dir_check() {
+  local \
+    _msg=()
+  if [[ ! -d "${_work_dir}" ]]; then
+    _msg=(
+      "Work directory '${_work_dir}'"
+      "does not exist."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_contract_deployer_auto_detect() {
+  local \
+    _msg=()
+  _msg=(
+    "Source publisher not specified,"
+    "attempting to retrieve the source"
+    "published from the contract deployer."
+  )
+  _msg_warning \
+    "${_msg[*]}"
+  # TODO: write it.
+}
+
+_work_dir_auto_detect() {
+  local \
+    _cache_dir \
+    _dir \
+    _contract_dir
+  _cache_dir="$( \
+    _cache_dir_get)"
+  _contract_dir="${_cache_dir}/${contract_network}/${contract_address}"
+  _dir="${_contract_dir}/work"
+  mkdir \
+    -p \
+    "${_dir}"
+  chmod \
+    700 \
+    "${_dir}"
+  _set_override \
+    "work" \
+    "dir" \
+    "${_dir}"
+}
+
+_cache_dir_get() {
+  local \
+    _dir
+  _dir="${HOME}/.cache/${app_name}"
+  mkdir \
+    -p \
+    "${_dir}"
+  chmod \
+    700 \
+    "${_dir}"
+  echo \
+    "${_dir}"
+}
+
+_output_dir_auto_detect() {
+  local \
+    _cache_dir \
+    _output_dir
+  if [[ "${output_type}" == "all" ]]; then
+    _cache_dir="$( \
+      _cache_dir_get)"
+    _output_dir="${_cache_dir}/${contract_network}/${contract_address}"
+  elif [[ "${output_type}" != "all" ]]; then
+    _output_dir="$( \
+      pwd)"
+  fi
+  _set_override \
+    "output" \
+    "dir" \
+    "${_output_dir}"
+}
+
+_output_file_auto_detect() {
+  local \
+    _cache_dir \
+    _output_dir \
+    _output_file
+  if [[ "${output_type}" == "all" ]]; then
+    _cache_dir="$( \
+      _cache_dir_get)"
+    _output_dir="${_cache_dir}/${contract_network}/${contract_address}"
+    _output_file="${_output_dir}/${contract_address}.sol"
+  elif [[ "${output_type}" != "all" ]]; then
+    _output_file="$( \
+      pwd)/${contract_address}.sol"
+  fi
+  _set_override \
+    "output" \
+    "file" \
+    "${_output_file}"
+}
+
+# Set defaults and, if present, overrides
+# command line option parameters
+_set_overrides() {
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+  _set_override \
+    "get" \
+    "date" \
+    "$(_get_date_human)"
+  _set_override \
+    "keys" \
+    "update" \
+    "n"
+  _work_dir_auto_detect
+  _set_override \
+    "output" \
+    "type" \
+    "all"
+  _output_dir_auto_detect
+  _output_file_auto_detect
+  _set_override \
+    "user" \
+    "level" \
+    "n"
+  _deployments_dir_auto_detect \
+    "evm-contracts-source-index" \
+    "${user_level}"
+  _network_auto_detect \
+    "SourceIndex" \
+    "${deployments_dir}" \
+    "${user_level}"
+  _api_key_auto_detect \
+    "${target_network}"
+  _wallet_overrides_set \
+    "evm-wallet" \
+    "default" \
+    "n"
+  _contract_setup_auto_detect \
+    "evm-contracts-source-index" \
+    "SourceIndex" \
+    "si" \
+    "${target_network}" \
+    "${user_level}" \
+    "${deployments_dir}"
+  _set_override \
+    "source" \
+    "publisher" \
+    ""
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _exit="${1}" \
+    _deployment \
+    _networks=() \
+    _usage_text
+  _deployment="${deployments_dir}/SourceIndex"
+  _networks=( $( \
+    evm-contract-deployment-networks \
+      -A \
+      "${_deployment}")
+  )
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+
+EVM Contracts source retrieval tool.
+
+Usage:
+  ${app_name}
+    [options]
+    (<contract_network>)
+    <contract_address>
+
+networks:
+$(_display_networks \
+     "${_networks[@]}")
+
+  options:
+     -P <publisher>         Contract source publisher. 
+                            If not specified the program will
+                            look through the source publishers list,
+                            look for the deployer and attempt to retrieve
+                            its sources.
+                            If the deployer is not found after a certain
+                            number of attempts and the 'authenticated call'
+                            '-a' option is enabled, the program will
+                            check if the source has been published on the
+                            user's own namespace.
+                            If not, the program will resume looking through
+                            the publishers' list and if the deployer won't
+                            be found the program will return an error.
+                            Default: ${source_publisher}
+     -U                     Whether to update the keys associated to the address.
+                            Default: ${keys_update}
+     -t <output_type>       It can be 'contract_source', 'evm_version', 'contract_compiler',
+                            'compiler_version', 'tx_deployment' or 'all'.
+                            Default: ${output_type}
+     -O <output_dir>        Output directory (for 'all' input type).
+                            Default: ${output_dir}
+     -o <output_dir>        Output file.
+                            Default: ${output_dir}
+
+  contract options:
+     -A <si_address>        Address of the SourceIndex
+                            contract on the network.
+                            Default: ${si_address}
+     -V <si_version>        Version of the target SourceIndex
+                            contract.
+                            Default: ${si_version}
+
+  credentials options:
+     -N <wallet_name>       Wallet name.
+                            Default: ${wallet_name}
+     -w <wallet_path>       Wallet path.
+                            Default: ${wallet_path}
+     -p <wallet_password>   Wallet password.
+                            Default: ${wallet_password}
+     -s <wallet_seed>       Wallet seed path.
+                            Default: ${wallet_seed}
+     -k <api_key>           Etherscan-like service key.
+                            Default: ${api_key}
+
+  libEVM options:
+     -a                     Whether to perform an authenticated
+                            call.
+                            Default: ${call_auth}
+     -u                     Whether to retrieve user repository
+                            address from user directory or custom
+                            deployment.
+                            Default: ${user_level}
+     -d <deployments_dir>   Contracts deployments directory.
+                            Default: ${deployments_dir}
+     -n <network>           EVM network name for the SourceIndex
+                            contract (${_networks[*]}).
+                            Default: ${target_network}
+
+  application options:
+     -W <work_dir>          Work directory.
+                            Default: ${output_dir}
+
+     -c                     Colors.
+     -h                     This message.
+     -v                     Enable verbose output
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${_exit}"
+}
+
+# Shows configuration options.
+_show_config() {
+  _msg_info "${app_name} configuration"
+  _msg_info "                       Get date:   ${get_date}"
+  _msg_info "               Source publisher:   ${source_publisher}"
+  _msg_info "               Contract network:   ${contract_network}"
+  _msg_info "               Contract address:   ${contract_address}"
+  _msg_info "               Output directory:   ${output_dir}"
+  _msg_info "                    Output file:   ${output_file}"
+  _msg_info "             Contract options:"
+  _msg_info "           Source Index address:   ${si_address}"
+  _msg_info "           Source Index version:   ${si_version}"
+  _msg_info "          Credentials options:"
+  _msg_info "                    Wallet name:   ${wallet_name}"
+  _msg_info "                    Wallet path:   ${wallet_path}"
+  _msg_info "                Wallet password:   ${wallet_password}"
+  _msg_info "                    Wallet seed:   ${wallet_seed}"
+  _msg_info "                        API key:   ${api_key}"
+  _msg_info "               LibEVM options:"
+  _msg_info "                 Target network:   ${target_network}"
+  _msg_info "             Authenticated call:   ${call_auth}"
+  _msg_info "                     User level:   ${user_level}"
+  _msg_info "          Deployments directory:   ${deployments_dir}"
+  _msg_info "          Application options:"
+  _msg_info "                 Work directory:   ${work_dir}"
+}
+
+_globals
+_global_variables
+_libevm_global_variables
+_libevm_app_global_variables
+_requirements
+# shellcheck disable=SC2004
+getopts_opts="$( \
+  printf \
+    "%s" \
+    "P:U:t:O:o:" \
+    "A:V:" \
+    "$(_libevm_app_getopts_params_get)" \
+    "a:n:" \
+    "$(_wallet_getopts_params_get)" \
+    "W:cvh")"
+while \
+  getopts \
+    "${getopts_opts}" \
+    arg; do
+  _wallet_getopts_case
+  _libevm_app_getopts_case
+  case \
+    "${arg}" in
+    P) \
+      override_source_publisher="${OPTARG}" ;;
+    t) \
+      override_output_type="${OPTARG}" ;;
+    O) \
+      override_output_dir="${OPTARG}" ;;
+    o) \
+      override_output_file="${OPTARG}" ;;
+    U) \
+      override_keys_update="${OPTARG}" ;;
+    A) \
+      override_si_address="${OPTARG}" ;;
+    V) \
+      override_si_version="${OPTARG}" ;;
+    a) \
+      override_call_auth="${OPTARG}" ;;
+    n) \
+      override_target_network="${OPTARG}" ;;
+    W) \
+      override_work_dir="${OPTARG}" ;;
+    c) \
+      override_color="y" ;;
+    v) \
+      override_quiet="n" ;;
+    h) \
+      _set_overrides && \
+        _usage \
+          0 ;;
+    *) \
+      if [[ " ${getopts_opts} " != *"${arg}"* ]]; then
+        _msg_error \
+          "Invalid argument '${arg}'." \
+          0
+        _usage \
+          1
+      fi ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+if (( $# < 1 )); then
+  _msg_error \
+    "No contract address or network specified." \
+    0
+  _usage \
+    1
+fi
+if (( $# < 2 )); then
+  if [[ "${1}" == "0x"* ]]; then
+    _msg=(
+      "No contract network specified,"
+      "assuming the target network is"
+      "the same of the target Source"
+      "Index."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    contract_address="${1}"
+  else
+    _msg_error \
+      "No contract address specified." \
+      0
+    _usage \
+      1
+  fi
+else
+  contract_network="${1}"
+  contract_address="$( \
+    _lower \
+      "${2}")"
+fi
+if [[ "${contract_address}" == "" ]]; then
+  _msg_error \
+    "No contract address specified." \
+    0
+  _usage \
+    1
+fi
+_set_overrides
+app_opts+=(
+  "${si_address}"
+  "${si_version}"
+  "${deployments_dir}"
+  "${wallet_name}"
+  "${wallet_path}"
+  "${wallet_password}"
+  "${wallet_seed}"
+  "${target_network}"
+  "${api_key}"
+  "${source_publisher}"
+  "${contract_network}"
+  "${contract_address}"
+  "${work_dir}"
+  "${keys_update}"
+  "${output_type}"
+  "${output_dir}"
+  "${output_file}"
+)
+_show_config
+_evm_contract_source_get \
+  "${app_opts[@]}"
