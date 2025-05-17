@@ -462,7 +462,7 @@ _evm_git() {
       "${_target_namespace}")"
   _address_sanity_check \
     "${_target_namespace}"
-  # _repo_dir="${_cache_dir}/${_contract_network}/${_contract_address}"
+  _repo_dir="${_cache_dir}/${_target_project}/${_target_commit}"
   # _contract_dir="${_cache_dir}/${_contract_network}/${_contract_address}"
   _msg=(
     "Publishing commit"
