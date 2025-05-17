@@ -358,31 +358,35 @@ _contract_prepare() {
     "${_work_dir}/${_contract_address}.sol"
 }
 
-_source_locked_check() {
+_commit_locked_check() {
   local \
-    _source_locked_call_opts=() \
+    _commit_locked_call_opts=() \
+    _lock_args=() \
     _locked \
     _msg=()
   _msg=(
     "Checking lock status for"
-    "contract '${_contract_address}'"
-    "on network '${_contract_network}'"
-    "by publisher '${_target_publisher}'."
+    "commit '${_target_commit}'"
+    "for project '${_target_project}'"
+    "in namespace '${_target_namespace}'."
   )
   _msg_info \
     "${_msg[*]}"
-  _source_locked_call_opts_setup \
-    "${_si_abi}" \
-    "${_si_bytecode}" \
-    "${_si_compiler_output}"
+  _lock_args+=(
+    "${_target_publisher}"
+    "${_contract_network}"
+    "${_contract_address}"
+  )
+  _commit_locked_call_opts_setup \
+    "${_gr_abi}" \
+    "${_gr_bytecode}" \
+    "${_gr_compiler_output}"
   _locked="$( \
     evm-contract-call \
-      "${_source_locked_call_opts[@]}" \
-      "${_si_address}" \
+      "${_commit_locked_call_opts[@]}" \
+      "${_gr_address}" \
       "lock" \
-      "${_target_publisher}" \
-      "${_contract_network}" \
-      "${_contract_address}")"
+      "${_lock_args[@]}")"
   if [[ "${_locked}" == "true" ]]; then
     _msg=(
       "Contract source URI for contract"
@@ -396,29 +400,19 @@ _source_locked_check() {
       1
   elif [[ "${_locked}" == "false" ]]; then
     _msg=(
-      "Contract unlocked, publishing."
+      "Commit unlocked, publishing."
     )
     _msg_info \
       "${_msg[*]}"
   else
     _msg=(
-      "Unknown error retrieving contract's"
-      "source lock status."
+      "Unknown error retrieving commit"
+      "lock status."
     )
     _msg_error \
       "${_msg[*]}" \
       1
   fi
-}
-
-_contract_address_check() {
-  local \
-    _
-  _tx_deployment="$( \
-    _lower \
-      "${_tx_deployment}")"
-  _bytes32_check \
-    "${_tx_deployment}"
 }
 
 _evm_git() {
