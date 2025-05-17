@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: AGPL-3.0
 
-#    EVM Contracts Source Index publishing tool
+#    EVM Git Publish
 #    ----------------------------------------------------------------------
 #    Copyright © 2024, 2025  Pellegrino Prevete
 #
@@ -89,21 +89,17 @@ _requirements() {
 # shellcheck disable=SC2034
 _global_variables() {
   publishing_date=()
-  si_address=""
-  si_version=""
+  gr_address=""
+  gr_version=""
   cache_dir=""
-  target_publisher=""
+  target_namespace=""
+  target_project=""
   gnupg_home=""
   pgp_fingerprint=""
   pgp_email=""
-  source_uri=""
-  source_publish=""
-  contract_address=""
-  contract_source=""
-  tx_deployment=""
-  evm_version=""
-  target_compiler=""
-  compiler_version=""
+  commit_uri=""
+  commit_publish=""
+  target_commit=""
   color=""
   quiet=""
 }
@@ -425,10 +421,10 @@ _contract_address_check() {
     "${_tx_deployment}"
 }
 
-_evm_contract_source_publish() {
+_evm_git() {
   local \
-    _si_address="${1}" \
-    _si_version="${2}" \
+    _gr_address="${1}" \
+    _gr_version="${2}" \
     _deployments_dir="${3}" \
     _wallet_name="${4}" \
     _wallet_path="${5}" \
@@ -437,179 +433,148 @@ _evm_contract_source_publish() {
     _target_network="${8}" \
     _api_key_path="${9}" \
     _target_publisher="${10}" \
-    _gnupg_home="${11}" \
-    _key_fingerprint="${12}" \
-    _cache_dir="${13}" \
-    _source_uri="${14}" \
-    _source_publish="${15}" \
-    _contract_network="${16}" \
-    _contract_address="${17}" \
-    _contract_source="${18}" \
-    _tx_deployment="${19}" \
-    _evm_version="${20}" \
-    _target_compiler="${21}" \
-    _compiler_version="${22}" \
+    _target_project="${11}" \
+    _gnupg_home="${12}" \
+    _key_fingerprint="${13}" \
+    _cache_dir="${14}" \
+    _commit_uri="${15}" \
+    _commit_publish="${16}" \
+    _target_commit="${17}" \
     _msg=() \
     _contract_dir \
     _work_dir \
     _si_abi \
     _si_bytecode \
     _si_compiler_output \
-    _publish_call_opts=()
-  if [[ "${_contract_address}" == "" ]]; then
+    _publish_call_opts=() \
+    _lock_commit_args=() \
+    _publish_commit_args=()
+  shift \
+    17
+  if [[ "${_target_commit}" == "" ]]; then
     _msg=(
-      "No contract address specified."
+      "No target commit specified."
     )
     _msg_error \
       "${_msg[*]}" \
       1
   fi
-  if [[ "${_tx_deployment}" == "" ]]; then
-    _msg=(
-      "No contract deployment transaction specified."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
-  fi
-  if [[ "${_evm_version}" == "" ]]; then
-    _msg=(
-      "No contract EVM version specified."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
-  fi
-  if [[ "${_compiler_version}" == "" ]]; then
-    _msg=(
-      "No contract compiler version specified."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
-  fi
-  _contract_address="$( \
+  _target_namespace="$( \
     _lower \
-      "${_contract_address}")"
-  _tx_deployment="$( \
-    _lower \
-      "${_tx_deployment}")"
+      "${_target_namespace}")"
   _address_sanity_check \
-    "${_contract_address}"
-  _tx_hash_sanity_check \
-    "${_tx_deployment}"
-  _contract_dir="${_cache_dir}/${_contract_network}/${_contract_address}"
+    "${_target_namespace}"
+  # _repo_dir="${_cache_dir}/${_contract_network}/${_contract_address}"
+  # _contract_dir="${_cache_dir}/${_contract_network}/${_contract_address}"
   _msg=(
-    "Publishing source for"
-    "contract '${_contract_source}'"
-    "on the Source Index."
+    "Publishing commit"
+    "'${_target_commit}' for project"
+    "'${_target_project}' on namespace"
+    "'${_target_namespace}'"
+    "on the Git Repository."
   )
   _msg_info \
     "${_msg[*]}"
   _contract_artifacts_auto_detect \
     "${_deployments_dir}" \
     "${_target_network}" \
-    "SourceIndex" \
-    "_si" \
-    "${_si_version}"
+    "GitRepository" \
+    "_gr" \
+    "${_gr_version}"
   _publish_call_opts_setup \
-    "${_si_abi}" \
-    "${_si_bytecode}" \
-    "${_si_compiler_output}"
-  if [[ "${_source_publish}" == "n" ]]; then
+    "${_gr_abi}" \
+    "${_gr_bytecode}" \
+    "${_gr_compiler_output}"
+  if [[ "${_commit_publish}" == "n" ]]; then
     _msg=(
-      "Skipping contract's source publishing."
+      "Skipping contract's commit publishing."
     )
     _msg_info \
       "${_msg[*]}"
-  elif [[ "${_source_publish}" == "y" ]]; then
-    if [[ "${_source_uri}" == "" ]]; then
-      _contract_prepare \
-        "${_contract_source}" \
-        "${_contract_address}"
-      _contract_compress \
+  elif [[ "${_commit_publish}" == "y" ]]; then
+    if [[ "${_commit_uri}" == "" ]]; then
+      _commit_prepare \
+        "${_target_commit}"
+        # "${_target_project}" \
+      _commit_compress \
         "${_work_dir}" \
-        "${_contract_address}"
-      _contract_sign \
+        "${_target_commit}"
+      _commit_sign \
         "${_work_dir}" \
-        "${_contract_address}" \
+        "${_target_commit}" \
         "${_gnupg_home}" \
         "${_key_fingerprint}"
-      _contract_upload \
+      _commit_upload \
         "${_work_dir}" \
-        "${_contract_address}" \
+        "${_target_commit}" \
         "${_wallet_name}" \
         "${_wallet_path}" \
         "${_wallet_password}" \
         "${_wallet_seed}" \
         "${_target_network}" \
         "${_api_key_path}"
-    elif [[ "${_source_uri}" != "" ]]; then
+    elif [[ "${_commit_uri}" != "" ]]; then
       _msg=(
-        "Signed contract source archive URI '${_source_uri}'"
+        "Signed commit archive URI '${_source_uri}'"
         "specified through command line, skipping"
         "upload."
       )
       _msg_info \
         "${_msg[*]}"
       _evmfs_uri_check \
-        "${_source_uri}"
+        "${_commit_uri}"
     fi
-    _source_locked_check
+    _commit_locked_check
     _msg=(
-      "Publisher"
-      "'${_target_publisher}' posting"
-      "source code '${_contract_source}'"
-      "for '${_contract_name}' contract"
-      "deployed on network '${_contract_network}'"
-      "at transaction '${_tx_deployment}'"
-      "with address '${_contract_address}',"
+      "Publishing commit"
+      "'${_target_commit}'"
+      "for '${_target_project}' project"
+      "on namespace '${_target_namespace}'"
       "pointing to EVMFS URI '${_source_uri}',"
-      "set to be built for EVM version"
-      "'${_evm_version}', compiler"
-      "'${_target_compiler}' version"
-      "'${_compiler_version}' on the EVM Contracts'"
-      "Source Index of network '${_target_network}'."
+      "on the Git Repository"
+      "of network '${_target_network}'."
     )
     _msg_info \
       "${_msg[*]}"
+    _publish_commit_args+=(
+      "${_target_namespace}"
+      "${_target_commit}"
+      "${_commit_uri}"
+    )
     evm-contract-call \
       "${_publish_call_opts[@]}" \
-      "${_si_address}" \
-      "publish" \
-      "${_target_publisher}" \
-      "${_contract_network}" \
-      "${_contract_address}" \
-      "${_source_uri}" \
-      "${_tx_deployment}" \
-      "${_evm_version}" \
-      "${_target_compiler}" \
-      "${_compiler_version}"
+      "${_gr_address}" \
+      "publishCommit" \
+      "${_publish_commit_args[@]}"
     _msg=(
-      "Source for contract"
-      "'${_contract_name}'"
+      "Commit"
+      "'${_target_commit}'"
+      "for project '${_target_project}'"
       "correctly published."
     )
     _msg_info \
       "${_msg[*]}"
   fi
   _msg=(
-    "Locking source for contract"
-    "at address '${_contract_address}'"
+    "Locking commit '${_target_commit}'"
+    "for project '${_target_project}'"
     "on network '${_contract_network}'"
-    "for publisher '${_target_publisher}'."
+    "on namespacer '${_target_namespace}'."
   )
   _msg_info \
     "${_msg[*]}"
+  _lock_commit_args+=(
+    "${_target_namespace}"
+    "${_target_project}"
+    "${_target_commit}"
+  )
   evm-contract-call \
     "${_publish_call_opts[@]}" \
-    "${_si_address}" \
-    "lockSource" \
-    "${_target_publisher}" \
-    "${_contract_network}" \
-    "${_contract_address}"
+    "${_gr_address}" \
+    "lockCommit" \
+    "${_lock_commit_args[@]}"
   _msg=(
-    "Contract's source correctly locked."
+    "Project's commit correctly locked."
   )
   _msg_info \
     "${_msg[*]}"
@@ -737,36 +702,6 @@ _pgp_email_auto_detect() {
     "${_email}"
 }
 
-_platform_auto_detect() {
-  local \
-    _platform="arch" \
-    _os
-  _os="$( \
-    uname \
-      -o)"
-  if [[ "${_os}" == "Android" ]] || \
-     [[ -v "TERMUX_VERSION" ]]; then
-    _platform="termux"
-  fi
-  echo \
-    "${_platform}"
-}
-
-_package_type_auto_detect() {
-  local \
-    _type
-  if [[ "${publishing_platform}" == "fur" ]]; then
-    _type="binary"
-  elif [[ "${publishing_platform}" == "ur" || \
-          "${publishing_platform}" == "gur"  ]]; then
-    _type="source"
-  fi
-  _set_override \
-    "package" \
-    "type" \
-    "${_type}"
-}
-
 # Set defaults and, if present, overrides
 # from arch-grub command line option parameters
 _set_overrides() {
@@ -791,10 +726,10 @@ _set_overrides() {
     "level" \
     "n"
   _deployments_dir_auto_detect \
-    "evm-contracts-source-index" \
+    "evm-git" \
     "${user_level}"
   _network_auto_detect \
-    "SourceIndex" \
+    "GitRepository" \
     "${deployments_dir}" \
     "${user_level}"
   _api_key_auto_detect \
@@ -805,20 +740,20 @@ _set_overrides() {
     "y"
   _set_override \
     "target" \
-    "publisher" \
+    "namespace" \
     "${wallet_address}"
   _set_override \
-    "source" \
+    "commit" \
     "uri" \
     ""
   _set_override \
-    "source" \
+    "commit" \
     "publish" \
     "y"
   _contract_setup_auto_detect \
-    "evm-contracts-source-index" \
-    "SourceIndex" \
-    "si" \
+    "evm-git" \
+    "GitRepository" \
+    "gr" \
     "${target_network}" \
     "${user_level}" \
     "${deployments_dir}"
@@ -836,26 +771,28 @@ _set_overrides() {
     "${HOME}/.config/evm-gnupg"
   _pgp_fingerprint_auto_detect
   _pgp_email_auto_detect
-  _set_override \
-    "target" \
-    "compiler" \
-    "solc"
+  _target_project_auto_detect
+  _target_commit_auto_detect
+  # _set_override \
+  #   "target" \
+  #   "compiler" \
+  #   "solc"
 }
 
 # Show help usage, with an exit status.
 # $1: exit status number.
 _usage() {
   local \
-    _si \
-    _si_deployment \
+    _gr \
+    _gr_deployment \
     _networks \
     _usage_text
-  _si="SourceIndex"
-  _si_deployment="${deployments_dir}/${_si}"
+  _gr="GitRepository"
+  _gr_deployment="${deployments_dir}/${_gr}"
   _networks=( $( \
     evm-contract-deployment-networks \
       -A \
-      "${_si_deployment}")
+      "${_gr_deployment}")
   )
   local \
     _usage_text
@@ -866,34 +803,30 @@ _usage() {
       _usage_text << \
         ENDUSAGETEXT || true
 
-EVM networks contracts' source index publishing tool.
+Publishes a git repository commit on an EVM network.
 
 Usage:
   ${app_name}
     [options]
-    <contract_network>
-    <contract_address>
-    <contract_source>
-    <tx_deployment>
-    <evm_version>
-    <compiler>
-    <compiler_version>
+    <commit>
 
   networks:
 $(_display_networks \
-     "${_networks[@]}")
+    "${_networks[@]}")
 
   options:
-     -P <target_publisher>     Target source publisher,
+     -T <target_project>       Target project name.
+                               Default: ${target_project}
+     -P <target_namespace>     Target source publisher,
                                i.e. user's wallet address.
-                               Default: ${target_publisher}
-     -U <source_uri>           To manually specify the signed
-                               contract's source archive evmfs URI
-                               and skip upload.
-                               Default: ${source_uri}
+                               Default: ${target_namespace}
+     -U <commit_uri>           To manually specify the signed
+                               commit archive EVMFS URI.
+                               and skip the upload.
+                               Default: ${commit_uri}
      -S <y/n>                  If set to 'y', it will skip
                                source publishing.
-                               Default: ${source_publish}
+                               Default: ${commit_publish}
      -K <fingerprint>          OpenPGP signature key.
                                Default: ${pgp_fingerprint}
      -E <email_like_id>        OpenPGP signature email.
@@ -902,10 +835,10 @@ $(_display_networks \
   contract options:
      -A <si_address>           Address of the 'Source Index'
                                contract on the network.
-                               Default: ${si_address}
+                               Default: ${gr_address}
      -V <si_version>           Version of the target 'Source Index'
                                contract.
-                               Default: ${si_version}
+                               Default: ${gr_version}
   libEVM options:
      -u                        Whether to retrieve publishers' contract
                                address from user directory or custom
@@ -946,32 +879,31 @@ ENDUSAGETEXT
 # Shows configuration options.
 _show_config() {
   _msg_info "${app_name} configuration"
-  _msg_info "            Publishing date:   ${publishing_date}"
-  _msg_info "       Source Index address:   ${si_address}"
-  _msg_info "       Source Index version:   ${si_version}"
-  _msg_info "                 User level:   ${user_level}"
-  _msg_info "      Deployments directory:   ${deployments_dir}"
-  _msg_info "             Wallet address:   ${wallet_address}"
-  _msg_info "                Wallet name:   ${wallet_name}"
-  _msg_info "                Wallet path:   ${wallet_path}"
-  _msg_info "            Wallet password:   ${wallet_password}"
-  _msg_info "                Wallet seed:   ${wallet_seed}"
-  _msg_info "             Target network:   ${target_network}"
-  _msg_info "                    API key:   ${api_key}"
-  _msg_info "           Target publisher:   ${target_publisher}"
-  _msg_info "            Cache directory:   ${cache_dir}"
-  _msg_info "            GNUPG directory:   ${gnupg_home}"
-  _msg_info "              Signature key:   ${pgp_fingerprint}"
-  _msg_info "            Signature email:   ${pgp_email}"
-  _msg_info "          Target source URI:   ${source_uri}"
-  _msg_info "             Source publish:   ${source_publish}"
-  _msg_info "           Contract network:   ${contract_network}"
-  _msg_info "           Contract address:   ${contract_address}"
-  _msg_info "            Target contract:   ${contract_source}"
-  _msg_info "     Deployment transaction:   ${tx_deployment}"
-  _msg_info "         Target EVM version:   ${evm_version}"
-  _msg_info "            Target compiler:   ${target_compiler}"
-  _msg_info "    Target compiler version:   ${compiler_version}"
+  _msg_info "             Publishing date:   ${publishing_date}"
+  _msg_info "            Target namespace:   ${target_namespace}"
+  _msg_info "              Target project:   ${target_namespace}"
+  _msg_info "               Target commit:   ${contract_source}"
+  _msg_info "               Signature key:   ${pgp_fingerprint}"
+  _msg_info "             Signature email:   ${pgp_email}"
+  _msg_info "           Target commit URI:   ${commit_uri}"
+  _msg_info "              Commit publish:   ${commit_publish}"
+  _msg_info "         Contracts options:"
+  _msg_info "      Git Repository address:   ${gr_address}"
+  _msg_info "      Git Repository version:   ${gr_version}"
+  _msg_info "LibEVM application options:"
+  _msg_info "                  User level:   ${user_level}"
+  _msg_info "        Deployment directory:   ${deployments_dir}"
+  _msg_info "              Target network:   ${target_network}"
+  _msg_info "       Credentials options:"
+  _msg_info "                 Wallet name:   ${wallet_name}"
+  _msg_info "              Wallet address:   ${wallet_address}"
+  _msg_info "                 Wallet path:   ${wallet_path}"
+  _msg_info "             Wallet password:   ${wallet_password}"
+  _msg_info "                 Wallet seed:   ${wallet_seed}"
+  _msg_info "                     API key:   ${api_key}"
+  _msg_info "       Application options:"
+  _msg_info "             GNUPG directory:   ${gnupg_home}"
+  _msg_info "             Cache directory:   ${cache_dir}"
 }
 
 _globals
@@ -997,17 +929,17 @@ while \
   case \
     "${arg}" in
     A) \
-      override_si_address="${OPTARG}" ;;
+      override_gr_address="${OPTARG}" ;;
     V) \
-      override_si_version="${OPTARG}" ;;
+      override_gr_version="${OPTARG}" ;;
     n) \
-      override_target_network="${OPTARG}" ;;
+      override_target_project="${OPTARG}" ;;
     P) \
-      override_target_publisher="${OPTARG}" ;;
+      override_target_namespace="${OPTARG}" ;;
     U) \
-      override_source_uri="${OPTARG}" ;;
+      override_commit_uri="${OPTARG}" ;;
     S) \
-      override_source_publish="${OPTARG}" ;;
+      override_commit_publish="${OPTARG}" ;;
     H) \
       override_gnupg_home="${OPTARG}" ;;
     K) \
@@ -1039,84 +971,16 @@ shift \
     OPTIND - 1 \
   ))
 if (( $# < 1 )); then
-  _msg_error \
-    "No contract network specified." \
-    0
-  _set_overrides
-  _usage \
-    1
+  _target_commit_auto_detect
 fi
-if (( $# < 1 )); then
-  _msg_error \
-    "No contract network specified." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-if (( $# < 2 )); then
-  _msg_error \
-    "No contract address specified." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-if (( $# < 3 )); then
-  _msg_error \
-    "No contract source given." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-if (( $# < 4 )); then
-  _msg_error \
-    "No deployment transaction hash given." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-if (( $# < 5 )); then
-  _msg_error \
-    "No EVM version specified." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-
-if (( $# < 6 )); then
-  _msg_error \
-    "No compiler specified." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-if (( $# < 7 )); then
-  _msg_error \
-    "No compiler version specified." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
-contract_network="${1}"
-contract_address="${2}"
-contract_source="${3}"
-tx_deployment="${4}"
-evm_version="${5}"
-target_compiler="${6}"
-compiler_version="${7}"
+target_commit="${1}"
 _config_user_init \
   "${app_name}"
 _set_overrides
 _show_config
 app_opts=(
-  "${si_address}"
-  "${si_version}"
+  "${gr_address}"
+  "${gr_version}"
   "${deployments_dir}"
   "${wallet_name}"
   "${wallet_path}"
@@ -1124,19 +988,14 @@ app_opts=(
   "${wallet_seed}"
   "${target_network}"
   "${api_key}"
-  "${target_publisher}"
+  "${target_namespace}"
+  "${target_project}"
   "${gnupg_home}"
   "${pgp_fingerprint}"
   "${cache_dir}"
-  "${source_uri}"
-  "${source_publish}"
-  "${contract_network}"
-  "${contract_address}"
-  "${contract_source}"
-  "${tx_deployment}"
-  "${evm_version}"
-  "${target_compiler}"
-  "${compiler_version}"
+  "${commit_uri}"
+  "${commit_publish}"
+  "${target_commit}"
 )
-_evm_contract_source_publish \
+_evm_git \
   "${app_opts[@]}"
