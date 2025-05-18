@@ -94,6 +94,7 @@ _global_variables() {
   cache_dir=""
   target_namespace=""
   target_project=""
+  target_repo=""
   gnupg_home=""
   pgp_fingerprint=""
   pgp_email=""
@@ -331,12 +332,16 @@ _evmfs_uri_check() {
   fi
 }
 
+_repo_init() {
+  echo
+}
+
 _commit_prepare() {
   local \
-    _contract_source="${1}" \
-    _contract_address="${2}" \
+    _target_commit="${1}" \
     _msg=() \
-    _contract_filename
+    _repo_filename
+  _repo_init
   if [[ ! -e "${_contract_source}" ]]; then
     _msg=(
       "Contract source"
@@ -586,10 +591,10 @@ _work_dir_setup() {
       -u \
       -d \
       -p \
-        "${_contract_dir}")"
+        "${_repo_dir}")"
   _msg=(
     "Setting up"
-    "source contract publish"
+    "commit repository publish"
     "work directory"
     "'${_work_dir}'."
   )
@@ -700,6 +705,32 @@ _pgp_email_auto_detect() {
     "${_email}"
 }
 
+_target_repo_auto_detect() {
+  local \
+    _repo
+  _repo="$( \
+    pwd)"
+  _set_override \
+    "target" \
+    "repo" \
+    "${_repo}"
+}
+
+_target_commit_auto_detect() {
+  local \
+    _commit
+  _commit="$( \
+    git \
+      -C \
+        "${target_repo}" \
+      log | \
+      head \
+        -n \
+	  1 | \
+        awk \
+	  '{print $2}')"
+}
+
 # Set defaults and, if present, overrides
 # from arch-grub command line option parameters
 _set_overrides() {
@@ -769,8 +800,9 @@ _set_overrides() {
     "${HOME}/.config/evm-gnupg"
   _pgp_fingerprint_auto_detect
   _pgp_email_auto_detect
+  _target_repo_auto_detect
   _target_project_auto_detect
-  _target_commit_auto_detect
+  # _target_commit_auto_detect
   # _set_override \
   #   "target" \
   #   "compiler" \
@@ -813,6 +845,8 @@ $(_display_networks \
     "${_networks[@]}")
 
   options:
+     -C <target_repo>          Target Git repository.
+                               Default: ${target_repo}
      -T <target_project>       Target project name.
                                Default: ${target_project}
      -P <target_namespace>     Target source publisher,
@@ -831,10 +865,10 @@ $(_display_networks \
                                Default: ${pgp_email}
 
   contract options:
-     -A <si_address>           Address of the 'Source Index'
+     -A <gr_address>           Address of the 'Git Repository'
                                contract on the network.
                                Default: ${gr_address}
-     -V <si_version>           Version of the target 'Source Index'
+     -V <gr_version>           Version of the target 'Git Repository'
                                contract.
                                Default: ${gr_version}
   libEVM options:
@@ -860,6 +894,8 @@ $(_display_networks \
                                Default: ${api_key}
 
   application options:
+     -W <cache_dir>            Work directory.
+                               Default: ${cache_dir}
      -H <gnupg_home>           GNUPG home directory.
                                Default: ${gnupg_home}
 
@@ -912,7 +948,7 @@ _libevm_global_variables
 getopts_opts="$( \
   printf \
     "%s" \
-    "P:U:S:H:K:E:" \
+    "C:P:U:S:H:K:E:" \
     "A:V:" \
     "$(_libevm_app_getopts_params_get)" \
     "n:" \
@@ -932,6 +968,8 @@ while \
       override_gr_version="${OPTARG}" ;;
     n) \
       override_target_project="${OPTARG}" ;;
+    C) \
+      override_target_repo="${OPTARG}" ;;
     P) \
       override_target_namespace="${OPTARG}" ;;
     U) \
@@ -988,6 +1026,7 @@ app_opts=(
   "${api_key}"
   "${target_namespace}"
   "${target_project}"
+  "${target_repo}"
   "${gnupg_home}"
   "${pgp_fingerprint}"
   "${cache_dir}"
