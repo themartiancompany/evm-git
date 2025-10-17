@@ -44,6 +44,20 @@ contract GitRepository {
   mapping(
     address => mapping (
       string => mapping(
+        string => uint256 ) ) public readersNo;
+  mapping(
+    address => mapping (
+      string => mapping(
+        string => mapping(
+          uint256 => address ) ) ) ) public readers;
+  mapping(
+    address => mapping (
+      string => mapping(
+        string => mapping(
+          address => bool ) ) ) ) public reader;
+  mapping(
+    address => mapping (
+      string => mapping(
         string => bool ) ) ) public lock;
   constructor() {}
 
@@ -57,6 +71,109 @@ contract GitRepository {
     view {
     require(
       msg.sender == _namespace
+    );
+  }
+
+  /**
+   * @dev Check reader.
+   * @param _namespace Repository namespace.
+   */
+  function addReader(
+    address _namespace,
+    string memory _repository,
+    string memory _commit,
+    address _reader
+  )
+    public
+    view {
+    checkOwner(
+      _namespace);
+    reader[
+      _namespace][
+        _repository][
+          _commit][
+            _reader] =
+      true;
+  }
+
+  /**
+   * @dev Remove reader.
+   * @param _namespace Repository namespace.
+   */
+  function removeReader(
+    address _namespace,
+    string memory _repository,
+    string memory _commit,
+    address _reader
+  )
+    public
+    view {
+    checkOwner(
+      _namespace);
+    reader[
+      _namespace][
+        _repository][
+          _commit][
+            _reader] =
+      false;
+  }
+
+  /**
+   * @dev Make a reader listable.
+   * @param _namespace Repository namespace.
+   */
+  function listReader(
+    address _namespace,
+    string memory _repository,
+    string memory _commit,
+    address _reader
+  )
+    public
+    view {
+    checkOwner(
+      _namespace);
+    reader[
+      _namespace][
+        _repository][
+          _commit][
+            _reader] =
+      true;
+  }
+
+  /**
+   * @dev Check reader.
+   * @param _namespace Repository namespace.
+   */
+  function checkReader(
+    address _namespace,
+    string memory _repository,
+    string memory _commit
+  )
+    public
+    view {
+    require(
+      reader[
+        _namespace][
+	  _repository][
+	    _commit][
+	      msg.sender]
+    );
+  }
+
+  /**
+   * @dev Check global read state.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function checkPublic(
+    address _namespace,
+    string memory _repository)
+    public
+    {
+    require(
+      readable[
+        _namespace][
+          _repository]
     );
   }
 
@@ -213,7 +330,16 @@ contract GitRepository {
     checkLocked(
       _namespace,
       _repository,
-      _commit);
+      _commit
+    );
+    require(
+      checkReadable(
+        _namespace,
+	_repository) || checkReader(
+                          _namespace,
+                          _repository,
+                          _commit
+    );
     return commit[
              _namespace][
                _repository][
