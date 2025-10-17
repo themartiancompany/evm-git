@@ -32,6 +32,9 @@ contract GitRepository {
 
   mapping(
     address => mapping (
+      string => bool ) ) public readable;
+  mapping(
+    address => mapping (
       string => uint256 ) ) public commitsNo;
   mapping(
     address => mapping (
@@ -88,12 +91,28 @@ contract GitRepository {
     view {
     checkOwner(
       _namespace);
+    require(
+      reader[
+        _namespace][
+          _repository][
+            _commit][
+              _reader] ==
+        false
+    );
     reader[
       _namespace][
         _repository][
           _commit][
             _reader] =
       true;
+    readers[
+      _namespace][
+        _repository][
+          _commit][
+      readersNo[
+        _namespace][
+          _repository][
+            _commit]]
   }
 
   /**
@@ -333,7 +352,7 @@ contract GitRepository {
       _commit
     );
     require(
-      checkReadable(
+      checkPublic(
         _namespace,
 	_repository) || checkReader(
                           _namespace,
