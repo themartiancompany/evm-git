@@ -46,7 +46,9 @@ contract GitRepository {
   mapping(
     address => mapping (
       string => mapping(
-        string => string ) ) ) public parent;
+        string => mapping(
+          address => mapping(
+            string => string ) ) ) ) ) public parentCommit;
   mapping(
     address => mapping (
       string => mapping(
@@ -298,16 +300,20 @@ contract GitRepository {
   }
 
   /**
-   * @dev Publishes a commit onto a Repository.
+   * @dev Publishes a parent for a commit onto a Repository.
    * @param _namespace Git repository namespace.
    * @param _repository Repository name.
-   * @param _commit Parent which needs to be retrieved in order
-                    to build the commit (for delta pushes).
+   * @param _commit Target commit.
+   * @param _parent_namespace Parent commit namespace.
+   * @param _parent_repository Parent commit git repository.
+   * @param _parent Parent commit.
    */
   function setParent(
     address _namespace,
     string memory _repository,
     string memory _commit,
+    address _parent_namespace,
+    string memory _parent_repository,
     string memory _parent) public {
     checkOwner(
       _namespace);
@@ -315,10 +321,22 @@ contract GitRepository {
       _namespace,
       _repository,
       _commit);
-    parent[
+    parentNamespace[
       _namespace][
         _repository][
           _commit] =
+      _parent_namespace;
+    parentRepository[
+      _namespace][
+        _repository][
+          _commit] =
+      _parent_repository;
+    parentCommit[
+      _namespace][
+        _repository][
+          _commit][
+            _parent_namespace][
+              _parent_repository] =
       _parent;
   }
 
