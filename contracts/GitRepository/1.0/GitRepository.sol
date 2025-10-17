@@ -176,9 +176,9 @@ contract GitRepository {
     require(
       reader[
         _namespace][
-	  _repository][
-	    _commit][
-	      msg.sender]
+          _repository][
+            _commit][
+              msg.sender]
     );
   }
 
