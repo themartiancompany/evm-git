@@ -298,7 +298,32 @@ contract GitRepository {
   }
 
   /**
-   * @dev Lock the contract source.
+   * @dev Publishes a commit onto a Repository.
+   * @param _namespace Git repository namespace.
+   * @param _repository Repository name.
+   * @param _commit Parent which needs to be retrieved in order
+                    to build the commit (for delta pushes).
+   */
+  function setParent(
+    address _namespace,
+    string memory _repository,
+    string memory _commit,
+    string memory _parent) public {
+    checkOwner(
+      _namespace);
+    checkUnlocked(
+      _namespace,
+      _repository,
+      _commit);
+    parent[
+      _namespace][
+        _repository][
+          _commit] =
+      _parent;
+  }
+
+  /**
+   * @dev Lock the commit.
    * @param _namespace Git repository namespace.
    * @param _repository Repository name.
    * @param _commit Commit to publish.
