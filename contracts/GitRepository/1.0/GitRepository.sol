@@ -28,7 +28,6 @@ pragma solidity >=0.7.0 <0.9.0;
 contract GitRepository {
 
   address public immutable deployer = 0xea02F564664A477286B93712829180be4764fAe2;
-  string public hijess = "mm";
 
   mapping(
     address => mapping (
