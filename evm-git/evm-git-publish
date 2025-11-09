@@ -22,13 +22,12 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-_bin="$( \
+_bin="$(
   dirname \
-    "$( \
-      command \
-        -v \
-	  "env")")"
-_lib="$( \
+    "$(command \
+         -v \
+         "env")")"
+_lib="$(
   realpath \
     "${_bin}/../lib")"
 _crash_bash="${_lib}/libcrash-bash/crash-bash"
@@ -69,7 +68,7 @@ _requirements() {
   libevm-requirements
   _check_cmd \
     'tar'
-  _zlib="$( \
+  _zlib="$(
     find \
       "$(_get_lib)/libz."* \
       -type \
@@ -246,7 +245,7 @@ _commit_upload() {
   )
   _msg_info \
     "${_msg[*]}"
-  _source_uri="$( \
+  _source_uri="$(
     evmfs \
       "${_evmfs_uri_opts[@]}" \
       publish \
@@ -353,7 +352,7 @@ _commit_prepare() {
       1
   fi
   _work_dir_setup
-  _contract_filename="$( \
+  _contract_filename="$(
     basename \
       "${_contract_source}")"
   _contract_name="${_contract_filename%*.sol}"
@@ -386,7 +385,7 @@ _commit_locked_check() {
     "${_gr_abi}" \
     "${_gr_bytecode}" \
     "${_gr_compiler_output}"
-  _locked="$( \
+  _locked="$(
     evm-contract-call \
       "${_commit_locked_call_opts[@]}" \
       "${_gr_address}" \
@@ -462,7 +461,7 @@ _evm_git() {
       "${_msg[*]}" \
       1
   fi
-  _target_namespace="$( \
+  _target_namespace="$(
     _lower \
       "${_target_namespace}")"
   _address_sanity_check \
@@ -586,7 +585,7 @@ _evm_git() {
 _work_dir_setup() {
   local \
     _msg=()
-  _work_dir="$( \
+  _work_dir="$(
     mktemp \
       -u \
       -d \
@@ -650,7 +649,7 @@ _key_latest_select() {
         "${_keyserver_receive_dir}" \
 	"${_find_opts[@]}" 2>/dev/null || \
       true)
-  _keys_sorted=( $( \
+  _keys_sorted=( $(
     printf \
       "%s\n" \
       "${_keys[@]}" | \
@@ -673,12 +672,12 @@ _key_latest_select() {
   fi
   _msg_info \
     "Selecting key '${_keys_sorted[-1]}'."
-  _fingerprint="$( \
+  _fingerprint="$(
     gpg-key-info \
       -o \
         "fingerprint" \
       "${_keys_sorted[-1]}")"
-  _email="$( \
+  _email="$(
     gpg-key-info \
       -o \
         "email" \
@@ -708,7 +707,7 @@ _pgp_email_auto_detect() {
 _target_repo_auto_detect() {
   local \
     _repo
-  _repo="$( \
+  _repo="$(
     pwd)"
   _set_override \
     "target" \
@@ -719,7 +718,7 @@ _target_repo_auto_detect() {
 _target_commit_auto_detect() {
   local \
     _commit
-  _commit="$( \
+  _commit="$(
     git \
       -C \
         "${target_repo}" \
@@ -819,7 +818,7 @@ _usage() {
     _usage_text
   _gr="GitRepository"
   _gr_deployment="${deployments_dir}/${_gr}"
-  _networks=( $( \
+  _networks=( $(
     evm-contract-deployment-networks \
       -A \
       "${_gr_deployment}")
@@ -945,7 +944,7 @@ _global_variables
 _requirements
 _libevm_global_variables
 # shellcheck disable=SC2034
-getopts_opts="$( \
+getopts_opts="$(
   printf \
     "%s" \
     "C:P:U:S:H:K:E:" \
