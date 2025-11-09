@@ -961,37 +961,37 @@ while \
   _libevm_app_getopts_case
   case \
     "${arg}" in
-    A) \
+    A)
       override_gr_address="${OPTARG}" ;;
-    V) \
+    V)
       override_gr_version="${OPTARG}" ;;
-    n) \
+    n)
       override_target_project="${OPTARG}" ;;
-    C) \
+    C)
       override_target_repo="${OPTARG}" ;;
-    P) \
+    P)
       override_target_namespace="${OPTARG}" ;;
-    U) \
+    U)
       override_commit_uri="${OPTARG}" ;;
-    S) \
+    S)
       override_commit_publish="${OPTARG}" ;;
-    H) \
+    H)
       override_gnupg_home="${OPTARG}" ;;
-    K) \
+    K)
       override_pgp_fingerprint="${OPTARG}" ;;
-    E) \
+    E)
       override_pgp_email="${OPTARG}" ;;
-    W) \
+    W)
       override_cache_dir="${OPTARG}" ;;
-    c) \
+    c)
       override_color="y" ;;
-    v) \
+    v)
       override_quiet="n" ;;
-    h) \
+    h)
       _set_overrides && \
       _usage \
         0 ;;
-    *) \
+    *)
       if [[ " ${getopts_opts} " != *"${arg}"* ]]; then
         _msg_error \
           "Invalid argument '${arg}'." \
