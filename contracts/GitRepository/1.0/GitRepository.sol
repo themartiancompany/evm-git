@@ -442,7 +442,7 @@ contract GitRepository {
 
   /**
    * @dev Get current head commit for a branch.
-   * @param _commit Git repository namespace.
+   * @param _namespace Git repository namespace.
    * @param _repository Repository name.
    * @param _branch Branch of which to get the branch head.
    */
