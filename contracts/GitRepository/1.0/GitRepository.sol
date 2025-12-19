@@ -255,7 +255,8 @@ contract GitRepository {
     require(
       readable[
         _namespace][
-          _repository]
+          _repository],
+      "The repository is not public."
     );
   }
 
@@ -275,7 +276,8 @@ contract GitRepository {
       ! lock[
           _namespace][
             _repository][
-              _commit]
+              _commit],
+      "The repository is locked."
     );
   }
 
@@ -295,7 +297,8 @@ contract GitRepository {
       lock[
         _namespace][
           _repository][
-            _commit]
+            _commit],
+      "The repository is unlocked."
     );
   }
 
@@ -510,7 +513,6 @@ contract GitRepository {
   function setHead(
     address _namespace,
     string memory _repository,
-    uint256 _chain_id,
     string memory _branch,
     string memory _commit) public {
     checkOwner(
@@ -602,7 +604,7 @@ contract GitRepository {
     require(
       checkPublic(
         _namespace,
-	_repository) || checkReader(
+        _repository) || checkReader(
                           _namespace,
                           _repository,
                           _commit,
