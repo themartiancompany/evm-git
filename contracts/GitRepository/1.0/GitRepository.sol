@@ -96,7 +96,7 @@ contract GitRepository {
     address => mapping(
       string => mapping(
         string => mapping(
-          uint256 => uint256 ) ) ) public length;
+          uint256 => uint256 ) ) ) ) public length;
 
   constructor() {}
 
