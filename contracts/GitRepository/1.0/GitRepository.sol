@@ -36,7 +36,7 @@ contract GitRepository {
 
   mapping(
     address => mapping(
-      string => bool ) ) public readable;
+      string => uint256 ) ) public access;
   mapping(
     address => mapping(
       string => uint256 ) ) public commitsNo;
@@ -243,20 +243,92 @@ contract GitRepository {
   }
 
   /**
+   * @dev Make a repository private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function setPrivate(
+    address _namespace,
+    string memory _repository)
+    public
+    {
+    access[
+      _namespace][
+        _repository] =
+      0;
+  }
+
+  /**
+   * @dev Make a repository not private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function setNotPrivate(
+    address _namespace,
+    string memory _repository)
+    public
+    {
+    access[
+      _namespace][
+        _repository] =
+      1;
+  }
+
+  /**
    * @dev Check global read state.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
    */
-  function checkPublic(
+  function setPublic(
+    address _namespace,
+    string memory _repository)
+    public
+    {
+    access[
+      _namespace][
+        _repository] =
+      2;
+  }
+
+  /**
+   * @dev Check a repository is not private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function checkNotPrivate(
     address _namespace,
     string memory _repository)
     public
     {
     require(
-      readable[
+      access[
         _namespace][
-          _repository],
-      "The repository is not public."
+          _repository] > 0,
+      "The repository is private."
+    );
+  }
+
+  /**
+   * @dev Check a repository commit is readable.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function checkReadable(
+    address _namespace,
+    string memory _repository,
+    string memory _commit)
+    public
+    {
+    require(
+      access[
+        _namespace][
+          _repository] > 1 ||
+      reader[
+        _namespace][
+          _repository][
+            _commit][
+              msg.sender] > 0,
+      "The repository is not public or readable by this call sender."
     );
   }
 
@@ -637,16 +709,10 @@ contract GitRepository {
       _repository,
       _commit
     );
-    require(
-      checkPublic(
-        _namespace,
-        _repository) || checkReader(
-                          _namespace,
-                          _repository,
-                          _commit,
-			  msg.sender),
-      "The repository is not public or the reader has no read access."
-    );
+    checkReadable(
+      _namespace,
+      _repository,
+      _commit);
     return commit[
              _namespace][
                _repository][
