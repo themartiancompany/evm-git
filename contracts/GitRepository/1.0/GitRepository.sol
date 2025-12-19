@@ -204,7 +204,7 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader,
+    address _reader
   )
     public
     view {
@@ -228,7 +228,7 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader,
+    address _reader
   )
     public
     view {
@@ -486,7 +486,7 @@ contract GitRepository {
     string memory _branch,
     string memory _commit)
     public 
-    reurns bool {
+    reurns boolean {
     string memory _parent =
       parent[
         _namespace][
