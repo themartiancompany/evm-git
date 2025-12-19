@@ -39,6 +39,10 @@ contract GitRepository {
       string => uint256 ) ) public access;
   mapping(
     address => mapping(
+      string => mapping(
+        string => uint256 ) ) public branchAccess;
+  mapping(
+    address => mapping(
       string => uint256 ) ) public commitsNo;
   mapping(
     address => mapping(
@@ -79,6 +83,20 @@ contract GitRepository {
         string => mapping(
           address => uint256 ) ) ) ) public reader;
   mapping(
+    address => mapping(
+      string => mapping(
+        string => mapping(
+          uint256 => address ) ) ) ) public branchReaders;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => uint256 ) ) ) public branchReadersNo;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => mapping(
+          address => uint256 ) ) ) ) public branchReader;
+  mapping(
     address => mapping (
       string => mapping(
         string => bool ) ) ) public lock;
@@ -109,7 +127,8 @@ contract GitRepository {
     public
     view {
     require(
-      msg.sender == _namespace
+      msg.sender == _namespace,
+      "Call sender is not namespace owner."
     );
   }
 
@@ -121,10 +140,8 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader
-  )
-    public
-    view {
+    address _reader)
+    public {
     checkOwner(
       _namespace);
     checkNewReader(
@@ -159,15 +176,16 @@ contract GitRepository {
   /**
    * @dev Remove reader.
    * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _commit Commit for which to remove the reader.
+   * @param _reader The reader to remove.
    */
   function removeReader(
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader
-  )
-    public
-    view {
+    address _reader)
+    public {
     checkOwner(
       _namespace);
     checkReader(
@@ -199,16 +217,19 @@ contract GitRepository {
   /**
    * @dev Check reader.
    * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _commit Commit for which to remove the reader.
+   * @param _reader The reader to remove.
    */
   function checkReader(
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader
-  )
+    address _reader)
     public
     view {
     require(
+      _namespace == _reader ||
       reader[
         _namespace][
           _repository][
@@ -218,18 +239,18 @@ contract GitRepository {
     );
   }
 
-
   /**
    * @dev Check reader has currently no read access to the commit on the repository.
    * @param _namespace Repository namespace.
-   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _commit Commit for which to remove the reader.
+   * @param _reader The reader to remove.
    */
   function checkNewReader(
     address _namespace,
     string memory _repository,
     string memory _commit,
-    address _reader
-  )
+    address _reader)
     public
     view {
     require(
@@ -243,7 +264,99 @@ contract GitRepository {
   }
 
   /**
-   * @dev Make a repository private.
+   * @dev Remove branch reader.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   * @param _reader The reader to remove.
+   */
+  function removeBranchReader(
+    address _namespace,
+    string memory _repository,
+    string memory _branch,
+    address _reader)
+    public {
+    checkOwner(
+      _namespace);
+    checkBranchReader(
+      _namespace,
+      _repository,
+      _branch,
+      _reader);
+    uint256 _branchReaderNo =
+      branchReader[
+        _namespace][
+          _repository][
+            _branch][
+              _reader];
+    branchReaders[
+      _namespace][
+        _repository][
+          _branch][
+            _branchReaderNo] =
+      address(
+        0);
+    branchReader[
+      _namespace][
+        _repository][
+          _branch][
+            _reader] =
+      0;
+  }
+
+  /**
+   * @dev Check branch reader.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   * @param _reader The reader to remove.
+   */
+  function checkBranchReader(
+    address _namespace,
+    string memory _repository,
+    string memory _branch,
+    address _reader)
+    public
+    view
+    {
+    require(
+      _namespace == _reader ||
+      branchReader[
+        _namespace][
+          _repository][
+            _branch][
+              _reader] > 0,
+        "The reader has no read access to this branch on the repository."
+    );
+  }
+
+  /**
+   * @dev Check reader has currently no read access to the branch on the repository.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   * @param _reader The reader to remove.
+   */
+  function checkNewBranchReader(
+    address _namespace,
+    string memory _repository,
+    string memory _branch,
+    address _reader)
+    public
+    view
+    {
+    require(
+      branchReader[
+        _namespace][
+          _repository][
+            _branch][
+              _reader] == 0,
+        "The reader already has read access this branch on the repository."
+    );
+  }
+
+  /**
+   * @dev Makes a repository private.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
    */
@@ -259,7 +372,7 @@ contract GitRepository {
   }
 
   /**
-   * @dev Make a repository not private.
+   * @dev Makes a repository not private.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
    */
@@ -275,7 +388,7 @@ contract GitRepository {
   }
 
   /**
-   * @dev Check global read state.
+   * @dev Makes a repository public.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
    */
@@ -291,7 +404,63 @@ contract GitRepository {
   }
 
   /**
-   * @dev Check a repository is not private.
+   * @dev Makes a repository branch private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function setBranchPrivate(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    {
+    branchAccess[
+      _namespace][
+        _repository][
+          _branch] =
+      0;
+  }
+
+  /**
+   * @dev Makes a repository branch not private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function setNotPrivate(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    {
+    branchAccess[
+      _namespace][
+        _repository][
+          _branch] =
+      1;
+  }
+
+  /**
+   * @dev Makes a branch repository public.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function setBranchPublic(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    {
+    access[
+      _namespace][
+        _repository] =
+      2;
+  }
+
+  /**
+   * @dev Checks a repository is not private.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
    */
@@ -299,8 +468,10 @@ contract GitRepository {
     address _namespace,
     string memory _repository)
     public
+    view
     {
     require(
+      msg.sender == _namespace ||
       access[
         _namespace][
           _repository] > 0,
@@ -309,17 +480,86 @@ contract GitRepository {
   }
 
   /**
+   * @dev Checks a repository is public.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   */
+  function checkPublic(
+    address _namespace,
+    string memory _repository)
+    public
+    view
+    {
+    require(
+      msg.sender == _namespace ||
+      access[
+        _namespace][
+          _repository] > 1,
+      "The repository is public."
+    );
+  }
+
+  /**
+   * @dev Checks a repository branch is not private.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function checkBranchNotPrivate(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    view
+    {
+    require(
+      msg.sender == _namespace ||
+      branchAccess[
+        _namespace][
+          _repository][
+            _branch] > 0,
+      "The repository branch is private."
+    );
+  }
+
+  /**
+   * @dev Checks a repository branch is public.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function checkPublic(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    view
+    {
+    require(
+      msg.sender == _namespace ||
+      branchAccess[
+        _namespace][
+          _repository][
+            _branch] > 1,
+      "The repository is public."
+    );
+  }
+
+  /**
    * @dev Check a repository commit is readable.
    * @param _namespace Repository namespace.
    * @param _repository Repository name.
+   * @param _commit Commit to be verified readability.
    */
   function checkReadable(
     address _namespace,
     string memory _repository,
     string memory _commit)
     public
+    view
     {
     require(
+      msg.sender == _namespace ||
       access[
         _namespace][
           _repository] > 1 ||
@@ -328,7 +568,35 @@ contract GitRepository {
           _repository][
             _commit][
               msg.sender] > 0,
-      "The repository is not public or readable by this call sender."
+      "The repository is not public or readable by the call sender."
+    );
+  }
+
+  /**
+   * @dev Check a repository branch is readable.
+   * @param _namespace Repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Repository branch.
+   */
+  function checkBranchReadable(
+    address _namespace,
+    string memory _repository,
+    string memory _branch)
+    public
+    view
+    {
+    require(
+      msg.sender == _namespace ||
+      branchAccess[
+        _namespace][
+          _repository][
+            _branch] > 1 ||
+      branchReader[
+        _namespace][
+          _repository][
+            _branch][
+              msg.sender] > 0,
+      "The repository branch is not public or readable by the call sender."
     );
   }
 
@@ -381,7 +649,8 @@ contract GitRepository {
   function checkUri(
     string memory _uri)
     internal
-    pure {
+    pure
+    view {
     bytes memory _prefix =
       bytes(
         "evmfs://");
@@ -448,7 +717,9 @@ contract GitRepository {
     uint256 _parent_chain_id,
     address _parent_namespace,
     string memory _parent_repository,
-    string memory _parent) public {
+    string memory _parent)
+    public
+    {
     checkOwner(
       _namespace);
     checkUnlocked(
@@ -524,9 +795,16 @@ contract GitRepository {
   function getHead(
     address _namespace,
     string memory _repository,
-    string memory _branch) public
-    returns (string memory)
+    string memory _branch)
+    public
+    view
+    returns
+      (string memory)
     {
+    checkBranchReadable(
+      _namespace,
+      _repository,
+      _branch);
     uint256 _epoch =
       epoch[
         _namespace][
@@ -597,7 +875,8 @@ contract GitRepository {
     string memory _repository,
     string memory _branch,
     string memory _commit)
-    public {
+    public
+    view {
     string memory _parent =
       parent[
         _namespace][
@@ -624,7 +903,9 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _branch,
-    string memory _commit) public {
+    string memory _commit)
+    public
+    {
     checkOwner(
       _namespace);
     checkLocked(
@@ -675,7 +956,8 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _branch)
-    public {
+    public
+    {
     checkOwner(
       _namespace);
     uint256 _epoch =
