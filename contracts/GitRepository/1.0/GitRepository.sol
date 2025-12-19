@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-//    ----------------------------------------------------------------------
-//    Copyright © 2024, 2025  Pellegrino Prevete
-//
-//    All rights reserved
-//    ----------------------------------------------------------------------
-//
-//    This program is free software: you can redistribute it and/or modify
-//    it under the terms of the GNU Affero General Public License as published by
-//    the Free Software Foundation, either version 3 of the License, or
-//    (at your option) any later version.
-//
-//    This program is distributed in the hope that it will be useful,
-//    but WITHOUT ANY WARRANTY; without even the implied warranty of
-//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//    GNU Affero General Public License for more details.
-//
-//    You should have received a copy of the GNU Affero General Public License
-//    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**    ----------------------------------------------------------------------
+ *     Copyright ©
+ *       Pellegrino Prevete
+ *         2024, 2025
+ * 
+ *     All rights reserved
+ *     ----------------------------------------------------------------------
+ * 
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ * 
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ * 
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ *     ----------------------------------------------------------------------
+ */
 
 pragma solidity >=0.7.0 <0.9.0;
 
@@ -30,36 +35,46 @@ contract GitRepository {
   address public immutable deployer = 0xea02F564664A477286B93712829180be4764fAe2;
 
   mapping(
-    address => mapping (
+    address => mapping(
       string => bool ) ) public readable;
   mapping(
-    address => mapping (
+    address => mapping(
       string => uint256 ) ) public commitsNo;
   mapping(
-    address => mapping (
+    address => mapping(
       string => mapping(
         uint256 => string ) ) ) public commits;
   mapping(
-    address => mapping (
+    address => mapping(
       string => mapping(
         string => string ) ) ) public commit;
   mapping(
-    address => mapping (
+    address => mapping(
       string => mapping(
-        string => mapping(
-          address => mapping(
-            string => string ) ) ) ) ) public parentCommit;
+        string => uint256 ) ) ) public parentChainId;
   mapping(
-    address => mapping (
+    address => mapping(
+      string => mapping(
+        string => address) ) ) public parentNamespace;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => string ) ) ) public parentRepository;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => string ) ) ) public parent;
+  mapping(
+    address => mapping(
       string => mapping(
         string => uint256 ) ) public readersNo;
   mapping(
-    address => mapping (
+    address => mapping(
       string => mapping(
         string => mapping(
           uint256 => address ) ) ) ) public readers;
   mapping(
-    address => mapping (
+    address => mapping(
       string => mapping(
         string => mapping(
           address => bool ) ) ) ) public reader;
@@ -67,6 +82,22 @@ contract GitRepository {
     address => mapping (
       string => mapping(
         string => bool ) ) ) public lock;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => mapping(
+          uint256 => mapping(
+            uint256 => string) ) ) ) ) public head;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => uint256 ) ) ) public epoch;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => mapping(
+          uint256 => uint256 ) ) ) public length;
+
   constructor() {}
 
   /**
@@ -312,6 +343,7 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _commit,
+    uint256 _parent_chain_id,
     address _parent_namespace,
     string memory _parent_repository,
     string memory _parent) public {
@@ -321,6 +353,11 @@ contract GitRepository {
       _namespace,
       _repository,
       _commit);
+    parentChainId[
+      _namespace][
+        _repository][
+          _commit] =
+      _parent_chain_id;
     parentNamespace[
       _namespace][
         _repository][
@@ -331,12 +368,10 @@ contract GitRepository {
         _repository][
           _commit] =
       _parent_repository;
-    parentCommit[
+    parent[
       _namespace][
         _repository][
-          _commit][
-            _parent_namespace][
-              _parent_repository] =
+          _commit] =
       _parent;
   }
 
@@ -376,6 +411,146 @@ contract GitRepository {
       _namespace][
         _repository] =
       _commitsNo + 1;
+  }
+
+  /**
+   * @dev Get current head commit for a branch.
+   * @param _commit Git repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Branch of which to get the branch head.
+   */
+  function getHead(
+    address _namespace,
+    string memory _repository,
+    string memory _branch) public
+    returns (string memory)
+    {
+    uint256 _epoch =
+      epoch[
+        _namespace][
+          _repository][
+            _branch];
+    uint256 _length =
+      length[
+        _namespace][
+          _repository][
+            _branch][
+              _epoch];
+    string memory _head =
+      heads[
+        _namespace][
+          _repository][
+            _branch][
+              _epoch][
+                _length];
+    return _head;
+  }
+
+  /**
+   * @dev Check head set is not a forced update.
+   * @param _commit Git repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Branch of which to set the branch head.
+   * @param _commit Commit you want to check if compatible with current head.
+   */
+  function isNotForcedUpdate(
+    address _namespace,
+    string memory _repository,
+    string memory _branch,
+    string memory _commit)
+    public 
+    reurns bool {
+    string memory _parent =
+      parent[
+        _namespace][
+          _repository][
+            _commit];
+    string memory _head =
+      getHead(
+        _namespace,
+        _repository,
+        _branch);
+    return ( _head == _commit );
+  }
+
+  /**
+   * @dev Set head for a branch.
+   * @param _namespace Git repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Branch of which to set the branch head.
+   * @param _commit Commit to set as branch head.
+   */
+  function setHead(
+    address _namespace,
+    string memory _repository,
+    uint256 _chain_id,
+    string memory _branch,
+    string memory _commit) public {
+    checkOwner(
+      _namespace);
+    checkLocked(
+      _namespace,
+      _repository,
+      _commit);
+    uint256 _epoch =
+      epoch[
+        _namespace][
+          _repository][
+            _branch];
+    uint256 _length =
+      length[
+        _namespace][
+          _repository][
+            _branch][
+              _epoch];
+    if ( _epoch != 0 &&
+         _length != 0 ) {
+      require(
+        _isNotForcedUpdate(
+          _namespace,
+          _repository,
+          _branch,
+          _commit),
+          "To push an incompatible head use 'newHead'.");
+    }
+    heads[
+      _namespace][
+        _repository][
+          _branch][
+            _epoch][
+             _length] =
+      _commit;
+    length[
+      _namespace][
+        _repository][
+          _branch][
+            _epoch] =
+      _length + 1;
+  }
+
+  /**
+   * @dev Set new epoch for a branch.
+   * @param _namespace Git repository namespace.
+   * @param _repository Repository name.
+   * @param _branch Branch of which to set the branch head.
+   */
+  function setEpoch(
+    address _namespace,
+    string memory _repository,
+    string memory _branch,
+    public {
+    checkOwner(
+      _namespace);
+    uint256 _epoch =
+      epoch[
+        _namespace][
+          _repository][
+            _branch];
+    epoch[
+      _namespace][
+        _repository][
+          _branch] =
+      _epoch + 1;
   }
 
   /**
