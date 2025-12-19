@@ -535,7 +535,7 @@ contract GitRepository {
     if ( _epoch != 0 &&
          _length != 0 ) {
       require(
-        _isNotForcedUpdate(
+        isNotForcedUpdate(
           _namespace,
           _repository,
           _branch,
