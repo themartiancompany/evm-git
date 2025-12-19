@@ -419,7 +419,7 @@ _commit_locked_check() {
   fi
 }
 
-_evm_git() {
+_evm_git_publish() {
   local \
     _gr_address="${1}" \
     _gr_version="${2}" \
@@ -451,7 +451,7 @@ _evm_git() {
   shift \
     17
   _git_args+=(
-    "$$"
+    "$@"
   )
   if [[ "${_target_commit}" == "" ]]; then
     _msg=(

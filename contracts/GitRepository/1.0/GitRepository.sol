@@ -67,7 +67,7 @@ contract GitRepository {
   mapping(
     address => mapping(
       string => mapping(
-        string => uint256 ) ) public readersNo;
+        string => uint256 ) ) ) public readersNo;
   mapping(
     address => mapping(
       string => mapping(
