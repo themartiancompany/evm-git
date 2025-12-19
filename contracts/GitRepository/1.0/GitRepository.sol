@@ -67,12 +67,12 @@ contract GitRepository {
   mapping(
     address => mapping(
       string => mapping(
-        string => uint256 ) ) ) public readersNo;
+        string => mapping(
+          uint256 => address ) ) ) ) public readers;
   mapping(
     address => mapping(
       string => mapping(
-        string => mapping(
-          uint256 => address ) ) ) ) public readers;
+        string => uint256 ) ) ) public readersNo;
   mapping(
     address => mapping(
       string => mapping(
@@ -132,23 +132,31 @@ contract GitRepository {
         _namespace][
           _repository][
             _commit][
-              _reader] ==
-        false
+              _reader] == 0,
+        "Reader already allowed for this commit."
     );
+    uint256 _readersNo =
+      readersNo[
+        _namespace][
+          _repository][
+            _commit] + 1;
+    readersNo[
+      _namespace][
+        _repository][
+          _commit] =
+      _readersNo;
+    readers[
+      _namespace][
+        _repository][
+          _commit][
+            _readersNo] =
+      _reader;
     reader[
       _namespace][
         _repository][
           _commit][
             _reader] =
-      true;
-    readers[
-      _namespace][
-        _repository][
-          _commit][
-      readersNo[
-        _namespace][
-          _repository][
-            _commit]]
+      _readersNo;
   }
 
   /**
@@ -165,12 +173,32 @@ contract GitRepository {
     view {
     checkOwner(
       _namespace);
+    require(
+      reader[
+        _namespace][
+          _repository][
+            _commit][
+              _reader] > 0,
+        "The reader has no read access to the repository."
+    );
+    uint256 _readerNo =
+      reader[
+        _namespace][
+          _repository][
+            _commit][
+              _reader];
+    readers[
+      _namespace][
+        _repository][
+          _commit][
+            _readerNo] =
+      address(0);
     reader[
       _namespace][
         _repository][
           _commit][
             _reader] =
-      false;
+      0;
   }
 
   /**
