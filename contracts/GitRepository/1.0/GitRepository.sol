@@ -87,7 +87,7 @@ contract GitRepository {
       string => mapping(
         string => mapping(
           uint256 => mapping(
-            uint256 => string) ) ) ) ) public head;
+            uint256 => string ) ) ) ) ) public head;
   mapping(
     address => mapping(
       string => mapping(
@@ -477,6 +477,43 @@ contract GitRepository {
   }
 
   /**
+   * @dev Checks the input 'bytes' variables are the same.
+   * @param _a A 'bytes' type variable.
+   * @param _b A 'bytes' type variable to compare with the previous one.
+   */
+  function sameBytes(
+    bytes memory _a,
+    bytes memory _b )
+    internal pure {
+    require(
+      _a.length ==
+      _b.length,
+      "Input has different length.");
+    require(
+      keccak256(
+        _a) ==
+      keccak256(
+        _b),
+      "Input is not the same.");
+    }
+
+  /**
+   * @dev Checks the input string are the same.
+   * @param _a A string type variable.
+   * @param _b A string type variable to compare with the previous one.
+   */
+  function sameString(
+    string memory _a,
+    string memory _b )
+    internal pure {
+    sameBytes(
+      bytes(
+        _a),
+      bytes(
+        _a));
+    }
+
+  /**
    * @dev Check head set is not a forced update.
    * @param _commit Git repository namespace.
    * @param _repository Repository name.
@@ -488,8 +525,7 @@ contract GitRepository {
     string memory _repository,
     string memory _branch,
     string memory _commit)
-    public 
-    returns (bool) {
+    public {
     string memory _parent =
       parent[
         _namespace][
@@ -500,7 +536,9 @@ contract GitRepository {
         _namespace,
         _repository,
         _branch);
-    return ( _head == _commit );
+    sameString(
+      _head,
+      _commit);
   }
 
   /**
@@ -534,13 +572,11 @@ contract GitRepository {
               _epoch];
     if ( _epoch != 0 &&
          _length != 0 ) {
-      require(
-        isNotForcedUpdate(
-          _namespace,
-          _repository,
-          _branch,
-          _commit),
-          "To push an incompatible head use 'newHead'.");
+      isNotForcedUpdate(
+        _namespace,
+        _repository,
+        _branch,
+        _commit);
     }
     head[
       _namespace][
