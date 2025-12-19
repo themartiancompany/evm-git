@@ -489,7 +489,7 @@ contract GitRepository {
     string memory _branch,
     string memory _commit)
     public 
-    returns (boolean) {
+    returns (bool) {
     string memory _parent =
       parent[
         _namespace][
