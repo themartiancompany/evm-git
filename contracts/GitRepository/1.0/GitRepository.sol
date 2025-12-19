@@ -564,7 +564,7 @@ contract GitRepository {
   function setEpoch(
     address _namespace,
     string memory _repository,
-    string memory _branch,
+    string memory _branch)
     public {
     checkOwner(
       _namespace);
