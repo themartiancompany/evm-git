@@ -214,13 +214,14 @@ contract GitRepository {
           _repository][
             _commit][
               _reader] > 0,
-        "The reader has no read access to the repository."
+        "The reader has no read access to this commit on the repository."
     );
   }
 
 
   /**
-   * @dev Check reader.
+   * @dev Check reader has currently no read access to the commit on the repository.
+   * @param _namespace Repository namespace.
    * @param _namespace Repository namespace.
    */
   function checkNewReader(
@@ -237,7 +238,7 @@ contract GitRepository {
           _repository][
             _commit][
               _reader] == 0,
-        "The reader already has read access to the repository."
+        "The reader already has read access this commit on the repository."
     );
   }
 
