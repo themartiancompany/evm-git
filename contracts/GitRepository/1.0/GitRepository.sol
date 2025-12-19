@@ -109,6 +109,17 @@ contract GitRepository {
   mapping(
     address => mapping(
       string => mapping(
+        string => mapping(
+          string => mapping(
+            uint256 => string ) ) ) ) ) public tag;
+  mapping(
+    address => mapping(
+      string => mapping(
+        string => mapping(
+          string => uint256 ) ) ) ) public tagNo;
+  mapping(
+    address => mapping(
+      string => mapping(
         string => uint256 ) ) ) public epoch;
   mapping(
     address => mapping(
@@ -944,6 +955,45 @@ contract GitRepository {
           _branch][
             _epoch] =
       _length + 1;
+  }
+
+  /**
+   * @dev Publishes a tag.
+   * @param _namespace Git repository namespace.
+   * @param _repository Repository name.
+   * @param _tag Tag to be set.
+   * @param _commit Commit the tag must point to.
+   */
+  function publishTag(
+    address _namespace,
+    string memory _repository,
+    string memory _tag,
+    string memory _commit)
+    public
+    {
+    checkOwner(
+      _namespace);
+    checkLocked(
+      _namespace,
+      _repository,
+      _commit);
+    uint256 _tagNo =
+      tagNo[
+        _namespace][
+          _repository][
+            _tag];
+    tag[
+      _namespace][
+        _repository][
+          _tag][
+            _tagNo] =
+      _commit;
+    tagNo[
+      _namespace][
+        _repository][
+          _tag][
+            _tagNo] =
+      _tagNo + 1;
   }
 
   /**
