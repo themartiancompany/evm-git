@@ -127,14 +127,11 @@ contract GitRepository {
     view {
     checkOwner(
       _namespace);
-    require(
-      reader[
-        _namespace][
-          _repository][
-            _commit][
-              _reader] == 0,
-        "Reader already allowed for this commit."
-    );
+    checkNewReader(
+      _namespace,
+      _repository,
+      _commit,
+      _reader);
     uint256 _readersNo =
       readersNo[
         _namespace][
@@ -173,14 +170,11 @@ contract GitRepository {
     view {
     checkOwner(
       _namespace);
-    require(
-      reader[
-        _namespace][
-          _repository][
-            _commit][
-              _reader] > 0,
-        "The reader has no read access to the repository."
-    );
+    checkReader(
+      _namespace,
+      _repository,
+      _commit,
+      _reader);
     uint256 _readerNo =
       reader[
         _namespace][
@@ -192,7 +186,8 @@ contract GitRepository {
         _repository][
           _commit][
             _readerNo] =
-      address(0);
+      address(
+        0);
     reader[
       _namespace][
         _repository][
@@ -202,35 +197,14 @@ contract GitRepository {
   }
 
   /**
-   * @dev Make a reader listable.
-   * @param _namespace Repository namespace.
-   */
-  function listReader(
-    address _namespace,
-    string memory _repository,
-    string memory _commit,
-    address _reader
-  )
-    public
-    view {
-    checkOwner(
-      _namespace);
-    reader[
-      _namespace][
-        _repository][
-          _commit][
-            _reader] =
-      true;
-  }
-
-  /**
    * @dev Check reader.
    * @param _namespace Repository namespace.
    */
   function checkReader(
     address _namespace,
     string memory _repository,
-    string memory _commit
+    string memory _commit,
+    address _reader,
   )
     public
     view {
@@ -239,7 +213,31 @@ contract GitRepository {
         _namespace][
           _repository][
             _commit][
-              msg.sender]
+              _reader] > 0,
+        "The reader has no read access to the repository."
+    );
+  }
+
+
+  /**
+   * @dev Check reader.
+   * @param _namespace Repository namespace.
+   */
+  function checkNewReader(
+    address _namespace,
+    string memory _repository,
+    string memory _commit,
+    address _reader,
+  )
+    public
+    view {
+    require(
+      reader[
+        _namespace][
+          _repository][
+            _commit][
+              _reader] == 0,
+        "The reader already has read access to the repository."
     );
   }
 
@@ -606,7 +604,9 @@ contract GitRepository {
 	_repository) || checkReader(
                           _namespace,
                           _repository,
-                          _commit
+                          _commit,
+			  msg.sender),
+      "The repository is not public or the reader has no read access."
     );
     return commit[
              _namespace][
