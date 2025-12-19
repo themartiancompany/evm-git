@@ -467,7 +467,7 @@ contract GitRepository {
             _branch][
               _epoch];
     string memory _head =
-      heads[
+      head[
         _namespace][
           _repository][
             _branch][
@@ -542,7 +542,7 @@ contract GitRepository {
           _commit),
           "To push an incompatible head use 'newHead'.");
     }
-    heads[
+    head[
       _namespace][
         _repository][
           _branch][
