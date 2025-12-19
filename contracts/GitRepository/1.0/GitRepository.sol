@@ -486,7 +486,7 @@ contract GitRepository {
     string memory _branch,
     string memory _commit)
     public 
-    reurns boolean {
+    returns boolean {
     string memory _parent =
       parent[
         _namespace][
