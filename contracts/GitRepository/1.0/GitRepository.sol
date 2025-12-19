@@ -77,7 +77,7 @@ contract GitRepository {
     address => mapping(
       string => mapping(
         string => mapping(
-          address => bool ) ) ) ) public reader;
+          address => uint256 ) ) ) ) public reader;
   mapping(
     address => mapping (
       string => mapping(
