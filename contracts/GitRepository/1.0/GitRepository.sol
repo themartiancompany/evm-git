@@ -110,8 +110,7 @@ contract GitRepository {
     address => mapping(
       string => mapping(
         string => mapping(
-          string => mapping(
-            uint256 => string ) ) ) ) ) public tag;
+            uint256 => string ) ) ) ) public tag;
   mapping(
     address => mapping(
       string => mapping(
@@ -1001,8 +1000,7 @@ contract GitRepository {
     tagNo[
       _namespace][
         _repository][
-          _tag][
-            _tagNo] =
+          _tag] =
       _tagNo + 1;
   }
 
