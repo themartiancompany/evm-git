@@ -115,8 +115,7 @@ contract GitRepository {
   mapping(
     address => mapping(
       string => mapping(
-        string => mapping(
-          string => uint256 ) ) ) ) public tagNo;
+        string => uint256 ) ) ) public tagNo;
   mapping(
     address => mapping(
       string => mapping(
