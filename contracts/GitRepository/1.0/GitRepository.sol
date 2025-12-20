@@ -909,7 +909,7 @@ contract GitRepository {
         _branch);
     sameString(
       _head,
-      _commit);
+      _parent);
   }
 
   /**
