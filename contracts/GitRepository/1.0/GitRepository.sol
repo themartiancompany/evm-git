@@ -40,7 +40,7 @@ contract GitRepository {
   mapping(
     address => mapping(
       string => mapping(
-        string => uint256 ) ) public branchAccess;
+        string => uint256 ) ) ) public branchAccess;
   mapping(
     address => mapping(
       string => uint256 ) ) public commitsNo;
@@ -136,7 +136,8 @@ contract GitRepository {
   function checkOwner(
     address _namespace)
     public
-    view {
+    view
+    {
     require(
       msg.sender == _namespace,
       "Call sender is not namespace owner."
@@ -152,7 +153,8 @@ contract GitRepository {
     string memory _repository,
     string memory _commit,
     address _reader)
-    public {
+    public
+    {
     checkOwner(
       _namespace);
     checkNewReader(
@@ -196,7 +198,8 @@ contract GitRepository {
     string memory _repository,
     string memory _commit,
     address _reader)
-    public {
+    public
+    {
     checkOwner(
       _namespace);
     checkReader(
@@ -238,7 +241,8 @@ contract GitRepository {
     string memory _commit,
     address _reader)
     public
-    view {
+    view
+    {
     require(
       _namespace == _reader ||
       reader[
@@ -263,7 +267,8 @@ contract GitRepository {
     string memory _commit,
     address _reader)
     public
-    view {
+    view
+    {
     require(
       reader[
         _namespace][
@@ -286,7 +291,8 @@ contract GitRepository {
     string memory _repository,
     string memory _branch,
     address _reader)
-    public {
+    public
+    {
     checkOwner(
       _namespace);
     checkBranchReader(
@@ -622,7 +628,8 @@ contract GitRepository {
     string memory _repository,
     string memory _commit)
     public
-    view {
+    view
+    {
     require(
       ! lock[
           _namespace][
@@ -643,7 +650,8 @@ contract GitRepository {
     string memory _repository,
     string memory _commit)
     public
-    view {
+    view
+    {
     require(
       lock[
         _namespace][
@@ -660,8 +668,8 @@ contract GitRepository {
   function checkUri(
     string memory _uri)
     internal
-    pure
-    view {
+    view
+    {
     bytes memory _prefix =
       bytes(
         "evmfs://");
@@ -696,7 +704,9 @@ contract GitRepository {
     address _namespace,
     string memory _repository,
     string memory _commit,
-    string memory _uri) public {
+    string memory _uri)
+    public
+    {
     checkOwner(
       _namespace);
     checkUnlocked(
@@ -887,7 +897,8 @@ contract GitRepository {
     string memory _branch,
     string memory _commit)
     public
-    view {
+    view
+    {
     string memory _parent =
       parent[
         _namespace][
@@ -1034,7 +1045,8 @@ contract GitRepository {
     string memory _commit)
   public
   view
-  returns (string memory)
+  returns
+    (string memory)
   {
     checkLocked(
       _namespace,
