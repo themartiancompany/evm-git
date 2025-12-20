@@ -468,9 +468,10 @@ contract GitRepository {
     string memory _branch)
     public
     {
-    access[
+    branchAccess[
       _namespace][
-        _repository] =
+        _repository][
+          _branch] =
       2;
   }
 
@@ -666,7 +667,7 @@ contract GitRepository {
   function checkUri(
     string memory _uri)
     internal
-    view
+    pure
     {
     bytes memory _prefix =
       bytes(
@@ -879,7 +880,7 @@ contract GitRepository {
       bytes(
         _a),
       bytes(
-        _a));
+        _b));
     }
 
   /**
